@@ -1,6 +1,9 @@
 use std::{borrow::Cow, sync::Arc};
 
+use wgpu::util::DeviceExt;
 use winit::window::Window;
+
+use crate::vertex::{Vertex, VERTICES};
 
 pub struct WgpuContext<'a> {
     instance: wgpu::Instance,
@@ -10,7 +13,9 @@ pub struct WgpuContext<'a> {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
-    window: Arc<Window>,
+    vertex_buffer: wgpu::Buffer,
+    num_vertices: u32,
+    clear_color: wgpu::Color,
 }
 
 impl<'a> WgpuContext<'a> {
@@ -54,7 +59,7 @@ impl<'a> WgpuContext<'a> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[Vertex::desc()],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -73,6 +78,20 @@ impl<'a> WgpuContext<'a> {
             cache: None,
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let num_vertices = VERTICES.len() as u32;
+
+        let clear_color = wgpu::Color {
+            r: 0.1,
+            g: 0.2,
+            b: 0.3,
+            a: 1.0,
+        };
+
         Self {
             instance,
             surface,
@@ -81,7 +100,9 @@ impl<'a> WgpuContext<'a> {
             queue,
             surface_config,
             render_pipeline,
-            window,
+            vertex_buffer,
+            num_vertices,
+            clear_color,
         }
     }
 
@@ -90,6 +111,22 @@ impl<'a> WgpuContext<'a> {
         self.surface_config.width = width.max(1);
         self.surface_config.height = height.max(1);
         self.surface.configure(&self.device, &self.surface_config);
+    }
+
+    pub fn update_vertex_buffer(&mut self, vertices: &[Vertex]) {
+        self.vertex_buffer.unmap();
+        self.vertex_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+        self.num_vertices = vertices.len() as u32;
+    }
+
+    pub fn update_clear_color(&mut self, color: impl Into<wgpu::Color>) {
+        self.clear_color = color.into();
     }
 
     pub fn draw(&mut self) {
@@ -110,7 +147,7 @@ impl<'a> WgpuContext<'a> {
                     view: &texture_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                        load: wgpu::LoadOp::Clear(self.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -119,7 +156,8 @@ impl<'a> WgpuContext<'a> {
                 occlusion_query_set: None,
             });
             rpass.set_pipeline(&self.render_pipeline);
-            rpass.draw(0..3, 0..1);
+            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            rpass.draw(0..self.num_vertices, 0..1);
         }
         self.queue.submit(Some(encoder.finish()));
         surface_texture.present();

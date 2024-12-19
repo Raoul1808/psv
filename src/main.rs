@@ -6,6 +6,7 @@ use winit::{
 
 mod app;
 mod gpu;
+mod vertex;
 
 fn main() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new().expect("failed to create event loop");
