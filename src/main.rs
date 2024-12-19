@@ -5,6 +5,7 @@ use winit::{
 };
 
 mod app;
+mod gpu;
 
 fn main() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new().expect("failed to create event loop");

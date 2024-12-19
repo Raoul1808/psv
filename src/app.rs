@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use pollster::FutureExt;
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -6,23 +9,27 @@ use winit::{
     window::{Window, WindowId},
 };
 
-pub struct AppState {
-    #[allow(dead_code)]
-    window: Window,
-}
+use crate::gpu::WgpuContext;
 
 #[derive(Default)]
-pub struct App {
-    app_state: Option<AppState>,
+pub struct App<'a> {
+    window: Option<Arc<Window>>,
+    wgpu_ctx: Option<WgpuContext<'a>>,
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler for App<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = event_loop
-            .create_window(Window::default_attributes())
-            .expect("failed to create window");
-        let state = AppState { window };
-        self.app_state = Some(state);
+        if self.window.is_none() {
+            let attr = Window::default_attributes().with_title("push_swap visualizer");
+            let window = Arc::new(
+                event_loop
+                    .create_window(attr)
+                    .expect("failed to create window"),
+            );
+            let wgpu_ctx = WgpuContext::new(window.clone()).block_on();
+            self.window = Some(window.clone());
+            self.wgpu_ctx = Some(wgpu_ctx);
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -37,6 +44,16 @@ impl ApplicationHandler for App {
                     {
                         event_loop.exit();
                     }
+                }
+            }
+            WindowEvent::Resized(new_size) => {
+                if let Some(wgpu_ctx) = self.wgpu_ctx.as_mut() {
+                    wgpu_ctx.resize(new_size.into());
+                }
+            }
+            WindowEvent::RedrawRequested => {
+                if let Some(wgpu_ctx) = self.wgpu_ctx.as_mut() {
+                    wgpu_ctx.draw();
                 }
             }
             _ => {}
