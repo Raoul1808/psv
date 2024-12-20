@@ -5,6 +5,7 @@ use winit::{
 };
 
 mod app;
+mod egui_tools;
 mod gpu;
 mod vertex;
 

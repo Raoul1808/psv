@@ -5,17 +5,24 @@ use winit::window::Window;
 
 use crate::vertex::{Vertex, VERTICES};
 
+pub struct WgpuRenderPass {
+    pub surface_texture: wgpu::SurfaceTexture,
+    pub surface_view: wgpu::TextureView,
+    pub encoder: wgpu::CommandEncoder,
+}
+
 pub struct WgpuContext<'a> {
-    instance: wgpu::Instance,
-    surface: wgpu::Surface<'a>,
-    surface_config: wgpu::SurfaceConfiguration,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    num_vertices: u32,
-    clear_color: wgpu::Color,
+    pub instance: wgpu::Instance,
+    pub surface: wgpu::Surface<'a>,
+    pub surface_config: wgpu::SurfaceConfiguration,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub render_pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer,
+    pub num_vertices: u32,
+    pub clear_color: wgpu::Color,
+    pub render_pass: Option<WgpuRenderPass>,
 }
 
 impl<'a> WgpuContext<'a> {
@@ -103,7 +110,14 @@ impl<'a> WgpuContext<'a> {
             vertex_buffer,
             num_vertices,
             clear_color,
+            render_pass: None,
         }
+    }
+
+    pub fn surface_size(&self) -> (u32, u32) {
+        let width = self.surface_config.width;
+        let height = self.surface_config.height;
+        (width, height)
     }
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
@@ -129,12 +143,16 @@ impl<'a> WgpuContext<'a> {
         self.clear_color = color.into();
     }
 
-    pub fn draw(&mut self) {
+    pub fn begin_render_pass(&mut self) {
+        if self.render_pass.is_some() {
+            panic!("begin_render_pass called twice!");
+        }
+
         let surface_texture = self
             .surface
             .get_current_texture()
             .expect("no current texture");
-        let texture_view = surface_texture
+        let surface_view = surface_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
@@ -144,7 +162,7 @@ impl<'a> WgpuContext<'a> {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture_view,
+                    view: &surface_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.clear_color),
@@ -159,6 +177,23 @@ impl<'a> WgpuContext<'a> {
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             rpass.draw(0..self.num_vertices, 0..1);
         }
+        let render_pass = WgpuRenderPass {
+            surface_texture,
+            surface_view,
+            encoder,
+        };
+        self.render_pass = Some(render_pass);
+    }
+
+    pub fn submit_render_passes(&mut self) {
+        if self.render_pass.is_none() {
+            panic!("submit_render_passes called before begin_render_pass!");
+        }
+        let WgpuRenderPass {
+            surface_texture,
+            encoder,
+            ..
+        } = self.render_pass.take().unwrap();
         self.queue.submit(Some(encoder.finish()));
         surface_texture.present();
     }
