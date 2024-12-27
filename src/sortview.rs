@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
 
@@ -32,21 +34,33 @@ impl SortView {
         let mut next_index = 0;
         for i in 0..self.num_range {
             let i = i as f32;
+            let half_range = self.num_range as f32 / 2.;
+            let color = match i.partial_cmp(&half_range) {
+                Some(Ordering::Equal) => [1.0, 1.0, 0.0],
+                Some(Ordering::Less) => {
+                    let half = self.num_range as f32 / 2.;
+                    [1.0, i / half, 0.0]
+                }
+                Some(Ordering::Greater) | None => {
+                    let half = self.num_range as f32 / 2.;
+                    [1. - (i - half) / half, 1.0, 0.0]
+                }
+            };
             vertices.push(Vertex {
                 position: [0.0, i, 0.0],
-                color: [1.0, 0.0, 0.0],
+                color,
             });
             vertices.push(Vertex {
                 position: [i + 1.0, i, 0.0],
-                color: [1.0, 0.0, 0.0],
+                color,
             });
             vertices.push(Vertex {
                 position: [i + 1.0, i + 1.0, 0.0],
-                color: [1.0, 0.0, 0.0],
+                color,
             });
             vertices.push(Vertex {
                 position: [0.0, i + 1.0, 0.0],
-                color: [1.0, 0.0, 0.0],
+                color,
             });
             indices.extend_from_slice(&[
                 next_index,
