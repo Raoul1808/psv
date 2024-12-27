@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
+use rand::{seq::SliceRandom, thread_rng};
 
 use crate::vertex::{Vertex, VertexIndexPair};
 
@@ -32,18 +33,21 @@ impl SortView {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut next_index = 0;
-        for i in 0..self.num_range {
+        let mut numbers: Vec<_> = (0..self.num_range).collect();
+        numbers.shuffle(&mut thread_rng());
+        for (i, num) in numbers.into_iter().enumerate() {
             let i = i as f32;
+            let num = num as f32;
             let half_range = self.num_range as f32 / 2.;
-            let color = match i.partial_cmp(&half_range) {
+            let color = match num.partial_cmp(&half_range) {
                 Some(Ordering::Equal) => [1.0, 1.0, 0.0],
                 Some(Ordering::Less) => {
                     let half = self.num_range as f32 / 2.;
-                    [1.0, i / half, 0.0]
+                    [1.0, num / half, 0.0]
                 }
                 Some(Ordering::Greater) | None => {
                     let half = self.num_range as f32 / 2.;
-                    [1. - (i - half) / half, 1.0, 0.0]
+                    [1. - (num - half) / half, 1.0, 0.0]
                 }
             };
             vertices.push(Vertex {
@@ -51,11 +55,11 @@ impl SortView {
                 color,
             });
             vertices.push(Vertex {
-                position: [i + 1.0, i, 0.0],
+                position: [num + 1.0, i, 0.0],
                 color,
             });
             vertices.push(Vertex {
-                position: [i + 1.0, i + 1.0, 0.0],
+                position: [num + 1.0, i + 1.0, 0.0],
                 color,
             });
             vertices.push(Vertex {
