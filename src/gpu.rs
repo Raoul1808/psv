@@ -54,9 +54,22 @@ impl<'a> WgpuContext<'a> {
         let size = window.inner_size();
         let width = size.width.max(1);
         let height = size.height.max(1);
-        let surface_config = surface
-            .get_default_config(&adapter, width, height)
-            .expect("no surface config");
+        let swapchain_capabilities = surface.get_capabilities(&adapter);
+        let swapchain_format = swapchain_capabilities
+            .formats
+            .iter()
+            .find(|d| **d == wgpu::TextureFormat::Bgra8UnormSrgb)
+            .expect("failed to select proper surface texture format");
+        let surface_config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: *swapchain_format,
+            width,
+            height,
+            present_mode: wgpu::PresentMode::AutoVsync,
+            desired_maximum_frame_latency: 0,
+            alpha_mode: swapchain_capabilities.alpha_modes[0],
+            view_formats: vec![],
+        };
         surface.configure(&device, &surface_config);
 
         let shader_str = include_str!("shader.wgsl");
