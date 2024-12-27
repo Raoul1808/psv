@@ -4,7 +4,7 @@ use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-use crate::vertex::{Vertex, VERTICES};
+use crate::vertex::{Vertex, VertexIndexPair, INDICES, VERTICES};
 
 pub struct WgpuRenderPass {
     pub surface_texture: wgpu::SurfaceTexture,
@@ -21,9 +21,10 @@ pub struct WgpuContext<'a> {
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
+    pub index_buffer: wgpu::Buffer,
     pub camera_uniform: wgpu::Buffer,
     pub camera_bind_group: wgpu::BindGroup,
-    pub num_vertices: u32,
+    pub num_indices: u32,
     pub clear_color: wgpu::Color,
     pub render_pass: Option<WgpuRenderPass>,
 }
@@ -69,7 +70,12 @@ impl<'a> WgpuContext<'a> {
             contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        let num_vertices = VERTICES.len() as u32;
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = INDICES.len() as u32;
 
         let camera_data: [[f32; 4]; 4] = cgmath::Matrix4::<f32>::identity().into();
         let camera_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -150,9 +156,10 @@ impl<'a> WgpuContext<'a> {
             surface_config,
             render_pipeline,
             vertex_buffer,
+            index_buffer,
             camera_uniform,
             camera_bind_group,
-            num_vertices,
+            num_indices,
             clear_color,
             render_pass: None,
         }
@@ -171,15 +178,23 @@ impl<'a> WgpuContext<'a> {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    pub fn update_vertex_buffer(&mut self, vertices: &[Vertex]) {
+    pub fn update_buffers(&mut self, pair: VertexIndexPair) {
+        let VertexIndexPair { vertices, indices } = pair;
         self.vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(vertices),
+                contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
-        self.num_vertices = vertices.len() as u32;
+        self.index_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+        self.num_indices = indices.len() as u32;
     }
 
     pub fn update_projection_matrix(&mut self, matrix: [[f32; 4]; 4]) {
@@ -224,7 +239,8 @@ impl<'a> WgpuContext<'a> {
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, &self.camera_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            rpass.draw(0..self.num_vertices, 0..1);
+            rpass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            rpass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
         let render_pass = WgpuRenderPass {
             surface_texture,

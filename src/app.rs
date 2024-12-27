@@ -39,8 +39,8 @@ impl App<'_> {
             pixels_per_point: window.scale_factor() as f32,
         };
 
-        if let Some(vertex_data) = sort_view.get_vertex_data() {
-            wgpu_ctx.update_vertex_buffer(&vertex_data);
+        if let Some(data) = sort_view.get_tris_data() {
+            wgpu_ctx.update_buffers(data);
         }
         let projection = sort_view.get_projection_matrix();
         wgpu_ctx.update_projection_matrix(projection.into());

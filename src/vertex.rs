@@ -23,6 +23,8 @@ pub const VERTICES: &[Vertex] = &[
     },
 ];
 
+pub const INDICES: &[u32] = &[0, 1, 2];
+
 impl Vertex {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -42,4 +44,9 @@ impl Vertex {
             ],
         }
     }
+}
+
+pub struct VertexIndexPair {
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
 }

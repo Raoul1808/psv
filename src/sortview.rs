@@ -1,10 +1,10 @@
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
 
-use crate::vertex::Vertex;
+use crate::vertex::{Vertex, VertexIndexPair};
 
 pub struct SortView {
-    vertex_data: Option<Vec<Vertex>>,
+    tris_data: Option<VertexIndexPair>,
     projection: Matrix4<f32>,
     num_range: u32,
 }
@@ -12,14 +12,14 @@ pub struct SortView {
 impl SortView {
     pub fn new() -> Self {
         Self {
-            vertex_data: None,
+            tris_data: None,
             projection: Matrix4::identity(),
             num_range: 10,
         }
     }
 
-    pub fn get_vertex_data(&mut self) -> Option<Vec<Vertex>> {
-        self.vertex_data.take()
+    pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
+        self.tris_data.take()
     }
 
     pub fn get_projection_matrix(&self) -> Matrix4<f32> {
@@ -28,6 +28,8 @@ impl SortView {
 
     pub fn generate(&mut self) {
         let mut vertices = vec![];
+        let mut indices = vec![];
+        let mut next_index = 0;
         for i in 0..self.num_range {
             let i = i as f32;
             vertices.push(Vertex {
@@ -43,17 +45,18 @@ impl SortView {
                 color: [1.0, 0.0, 0.0],
             });
             vertices.push(Vertex {
-                position: [i + 1.0, i + 1.0, 0.0],
-                color: [1.0, 0.0, 0.0],
-            });
-            vertices.push(Vertex {
                 position: [0.0, i + 1.0, 0.0],
                 color: [1.0, 0.0, 0.0],
             });
-            vertices.push(Vertex {
-                position: [0.0, i, 0.0],
-                color: [1.0, 0.0, 0.0],
-            });
+            indices.extend_from_slice(&[
+                next_index,
+                next_index + 1,
+                next_index + 2,
+                next_index + 2,
+                next_index + 3,
+                next_index,
+            ]);
+            next_index += 4;
         }
         self.projection = ortho(
             0.,
@@ -63,7 +66,7 @@ impl SortView {
             -1.,
             1.,
         );
-        self.vertex_data = Some(vertices);
+        self.tris_data = Some(VertexIndexPair { vertices, indices });
     }
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
