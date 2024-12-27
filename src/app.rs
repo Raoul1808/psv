@@ -11,13 +11,14 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::{egui_tools::EguiRenderer, gpu::WgpuContext};
+use crate::{egui_tools::EguiRenderer, gpu::WgpuContext, sortview::SortView};
 
 #[derive(Default)]
 pub struct App<'a> {
     window: Option<Arc<Window>>,
     wgpu_ctx: Option<WgpuContext<'a>>,
     egui_renderer: Option<EguiRenderer>,
+    sort_view: Option<SortView>,
 }
 
 impl App<'_> {
@@ -27,6 +28,7 @@ impl App<'_> {
         let egui_renderer = self.egui_renderer.as_mut().expect("no egui renderer");
         let wgpu_ctx = self.wgpu_ctx.as_mut().expect("no wgpu context");
         let window = self.window.as_ref().expect("no window");
+        let sort_view = self.sort_view.as_mut().expect("no sort view");
 
         wgpu_ctx.begin_render_pass();
 
@@ -37,17 +39,18 @@ impl App<'_> {
             pixels_per_point: window.scale_factor() as f32,
         };
 
+        if let Some(vertex_data) = sort_view.get_vertex_data() {
+            wgpu_ctx.update_vertex_buffer(&vertex_data);
+        }
+        let projection = sort_view.get_projection_matrix();
+        wgpu_ctx.update_projection_matrix(projection.into());
+
         // TODO: Rename this (this is NOT *A* render pass)
         let render_pass = wgpu_ctx.render_pass.as_mut().expect("not rendering");
         {
             egui_renderer.begin_frame(window);
 
-            egui::Window::new("egui integration test")
-                .resizable(true)
-                .vscroll(true)
-                .show(egui_renderer.context(), |ui| {
-                    ui.label("Hello, world!");
-                });
+            sort_view.egui_menu(egui_renderer.context());
 
             egui_renderer.end_frame_and_draw(
                 &wgpu_ctx.device,
@@ -78,9 +81,11 @@ impl ApplicationHandler for App<'_> {
                 1,
                 &window,
             );
+            let sort_view = SortView::new();
             self.window = Some(window.clone());
             self.wgpu_ctx = Some(wgpu_ctx);
             self.egui_renderer = Some(egui_renderer);
+            self.sort_view = Some(sort_view);
         }
     }
 

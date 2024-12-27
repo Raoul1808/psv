@@ -7,6 +7,7 @@ use winit::{
 mod app;
 mod egui_tools;
 mod gpu;
+mod sortview;
 mod vertex;
 
 fn main() -> Result<(), EventLoopError> {

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bytemuck = "1.20.0"
+cgmath = "0.18.0"
 egui = "0.30.0"
 egui-wgpu = "0.30.0"
 egui-winit = "0.30.0"

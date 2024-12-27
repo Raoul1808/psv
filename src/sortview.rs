@@ -1,0 +1,83 @@
+use cgmath::{ortho, Matrix4, SquareMatrix};
+use egui::Widget;
+
+use crate::vertex::Vertex;
+
+pub struct SortView {
+    vertex_data: Option<Vec<Vertex>>,
+    projection: Matrix4<f32>,
+    num_range: u32,
+}
+
+impl SortView {
+    pub fn new() -> Self {
+        Self {
+            vertex_data: None,
+            projection: Matrix4::identity(),
+            num_range: 10,
+        }
+    }
+
+    pub fn get_vertex_data(&mut self) -> Option<Vec<Vertex>> {
+        self.vertex_data.take()
+    }
+
+    pub fn get_projection_matrix(&self) -> Matrix4<f32> {
+        self.projection
+    }
+
+    pub fn generate(&mut self) {
+        let mut vertices = vec![];
+        for i in 0..self.num_range {
+            let i = i as f32;
+            vertices.push(Vertex {
+                position: [0.0, i, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [i + 1.0, i, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [i + 1.0, i + 1.0, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [i + 1.0, i + 1.0, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [0.0, i + 1.0, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+            vertices.push(Vertex {
+                position: [0.0, i, 0.0],
+                color: [1.0, 0.0, 0.0],
+            });
+        }
+        self.projection = ortho(
+            0.,
+            self.num_range as f32,
+            self.num_range as f32,
+            0.,
+            -1.,
+            1.,
+        );
+        self.vertex_data = Some(vertices);
+    }
+
+    pub fn egui_menu(&mut self, ui: &egui::Context) {
+        egui::Window::new("push_swap visualizer")
+            .resizable(true)
+            .movable(true)
+            .collapsible(true)
+            .show(ui, |ui| {
+                egui::DragValue::new(&mut self.num_range)
+                    .range(10..=1000)
+                    .ui(ui);
+                if ui.button("Generate").clicked() {
+                    self.generate();
+                }
+            });
+    }
+}

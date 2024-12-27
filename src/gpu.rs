@@ -1,5 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -20,6 +21,8 @@ pub struct WgpuContext<'a> {
     pub queue: wgpu::Queue,
     pub render_pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
+    pub camera_uniform: wgpu::Buffer,
+    pub camera_bind_group: wgpu::BindGroup,
     pub num_vertices: u32,
     pub clear_color: wgpu::Color,
     pub render_pass: Option<WgpuRenderPass>,
@@ -60,9 +63,55 @@ impl<'a> WgpuContext<'a> {
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(shader_str)),
             label: None,
         });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let num_vertices = VERTICES.len() as u32;
+
+        let camera_data: [[f32; 4]; 4] = cgmath::Matrix4::<f32>::identity().into();
+        let camera_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&[camera_data]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_uniform.as_entire_binding(),
+            }],
+            label: Some("camera binding group"),
+        });
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
-            layout: None,
+            layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
@@ -85,13 +134,6 @@ impl<'a> WgpuContext<'a> {
             cache: None,
         });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let num_vertices = VERTICES.len() as u32;
-
         let clear_color = wgpu::Color {
             r: 0.1,
             g: 0.2,
@@ -108,6 +150,8 @@ impl<'a> WgpuContext<'a> {
             surface_config,
             render_pipeline,
             vertex_buffer,
+            camera_uniform,
+            camera_bind_group,
             num_vertices,
             clear_color,
             render_pass: None,
@@ -128,7 +172,6 @@ impl<'a> WgpuContext<'a> {
     }
 
     pub fn update_vertex_buffer(&mut self, vertices: &[Vertex]) {
-        self.vertex_buffer.unmap();
         self.vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -137,6 +180,11 @@ impl<'a> WgpuContext<'a> {
                 usage: wgpu::BufferUsages::VERTEX,
             });
         self.num_vertices = vertices.len() as u32;
+    }
+
+    pub fn update_projection_matrix(&mut self, matrix: [[f32; 4]; 4]) {
+        self.queue
+            .write_buffer(&self.camera_uniform, 0, bytemuck::cast_slice(&[matrix]));
     }
 
     pub fn update_clear_color(&mut self, color: impl Into<wgpu::Color>) {
@@ -174,6 +222,7 @@ impl<'a> WgpuContext<'a> {
                 occlusion_query_set: None,
             });
             rpass.set_pipeline(&self.render_pipeline);
+            rpass.set_bind_group(0, &self.camera_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             rpass.draw(0..self.num_vertices, 0..1);
         }
