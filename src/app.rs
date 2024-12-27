@@ -4,6 +4,7 @@ use egui_wgpu::ScreenDescriptor;
 use pollster::FutureExt;
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalSize,
     event::{KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
     keyboard::Key,
@@ -65,7 +66,9 @@ impl App<'_> {
 impl ApplicationHandler for App<'_> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.window.is_none() {
-            let attr = Window::default_attributes().with_title("push_swap visualizer");
+            let attr = Window::default_attributes()
+                .with_title("push_swap visualizer")
+                .with_inner_size(PhysicalSize::new(1280, 720));
             let window = Arc::new(event_loop.create_window(attr).expect("no window"));
             let wgpu_ctx = WgpuContext::new(window.clone()).block_on();
             let egui_renderer = EguiRenderer::new(
