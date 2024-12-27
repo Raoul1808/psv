@@ -29,11 +29,10 @@ impl App<'_> {
 
         wgpu_ctx.begin_render_pass();
 
+        let (surface_width, surface_height) = wgpu_ctx.surface_size();
+
         let screen_descriptor = ScreenDescriptor {
-            size_in_pixels: [
-                wgpu_ctx.surface_config.width,
-                wgpu_ctx.surface_config.height,
-            ],
+            size_in_pixels: [surface_width, surface_height],
             pixels_per_point: window.scale_factor() as f32,
         };
 
@@ -108,6 +107,7 @@ impl ApplicationHandler for App<'_> {
             }
             WindowEvent::RedrawRequested => {
                 self.handle_redraw();
+                self.window.as_ref().unwrap().request_redraw();
             }
             _ => {}
         }
