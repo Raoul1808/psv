@@ -78,7 +78,7 @@ impl SortView {
         }
         self.projection = ortho(
             0.,
-            self.num_range as f32,
+            self.num_range as f32 * 2.,
             self.num_range as f32,
             0.,
             -1.,
