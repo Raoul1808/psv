@@ -8,7 +8,8 @@ use crate::vertex::{Vertex, VertexIndexPair};
 
 pub struct SortView {
     projection: Matrix4<f32>,
-    values: Vec<u32>,
+    stack_a: Vec<u32>,
+    stack_b: Vec<u32>,
     num_range: u32,
     regenerate_render_data: bool,
 }
@@ -17,7 +18,8 @@ impl SortView {
     pub fn new() -> Self {
         Self {
             projection: Matrix4::identity(),
-            values: vec![],
+            stack_a: vec![],
+            stack_b: vec![],
             num_range: 10,
             regenerate_render_data: false,
         }
@@ -26,7 +28,9 @@ impl SortView {
     pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
         if self.regenerate_render_data {
             self.regenerate_render_data = false;
-            Some(self.generate_tris_data())
+            let mut data = self.generate_tris_data(self.stack_a.as_slice());
+            data.extend(self.generate_tris_data(self.stack_b.as_slice()));
+            Some(data)
         } else {
             None
         }
@@ -36,11 +40,22 @@ impl SortView {
         self.projection
     }
 
-    fn generate_tris_data(&mut self) -> VertexIndexPair {
+    fn update_projection(&mut self) {
+        self.projection = ortho(
+            0.,
+            self.num_range as f32 * 2.,
+            self.num_range as f32,
+            0.,
+            -1.,
+            1.,
+        );
+    }
+
+    fn generate_tris_data(&self, stack: &[u32]) -> VertexIndexPair {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut next_index = 0;
-        for (i, num) in self.values.iter().enumerate() {
+        for (i, num) in stack.iter().enumerate() {
             let i = i as f32;
             let num = (*num) as f32;
             let half_range = self.num_range as f32 / 2.;
@@ -81,14 +96,6 @@ impl SortView {
             ]);
             next_index += 4;
         }
-        self.projection = ortho(
-            0.,
-            self.num_range as f32 * 2.,
-            self.num_range as f32,
-            0.,
-            -1.,
-            1.,
-        );
         VertexIndexPair { vertices, indices }
     }
 
@@ -102,11 +109,12 @@ impl SortView {
                     .range(10..=1000)
                     .ui(ui);
                 if ui.button("Generate").clicked() {
-                    self.values = (0..self.num_range).collect();
+                    self.stack_a = (0..self.num_range).collect();
+                    self.update_projection();
                     self.regenerate_render_data = true;
                 }
                 if ui.button("Shuffle").clicked() {
-                    self.values.shuffle(&mut thread_rng());
+                    self.stack_a.shuffle(&mut thread_rng());
                     self.regenerate_render_data = true;
                 }
             });

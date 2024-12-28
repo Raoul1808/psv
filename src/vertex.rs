@@ -50,3 +50,10 @@ pub struct VertexIndexPair {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
 }
+
+impl VertexIndexPair {
+    pub fn extend(&mut self, other: VertexIndexPair) {
+        self.vertices.extend(other.vertices);
+        self.indices.extend(other.indices);
+    }
+}
