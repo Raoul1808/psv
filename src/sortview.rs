@@ -7,37 +7,42 @@ use rand::{seq::SliceRandom, thread_rng};
 use crate::vertex::{Vertex, VertexIndexPair};
 
 pub struct SortView {
-    tris_data: Option<VertexIndexPair>,
     projection: Matrix4<f32>,
+    values: Vec<u32>,
     num_range: u32,
+    regenerate_render_data: bool,
 }
 
 impl SortView {
     pub fn new() -> Self {
         Self {
-            tris_data: None,
             projection: Matrix4::identity(),
+            values: vec![],
             num_range: 10,
+            regenerate_render_data: false,
         }
     }
 
     pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
-        self.tris_data.take()
+        if self.regenerate_render_data {
+            self.regenerate_render_data = false;
+            Some(self.generate_tris_data())
+        } else {
+            None
+        }
     }
 
     pub fn get_projection_matrix(&self) -> Matrix4<f32> {
         self.projection
     }
 
-    pub fn generate(&mut self) {
+    fn generate_tris_data(&mut self) -> VertexIndexPair {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut next_index = 0;
-        let mut numbers: Vec<_> = (0..self.num_range).collect();
-        numbers.shuffle(&mut thread_rng());
-        for (i, num) in numbers.into_iter().enumerate() {
+        for (i, num) in self.values.iter().enumerate() {
             let i = i as f32;
-            let num = num as f32;
+            let num = (*num) as f32;
             let half_range = self.num_range as f32 / 2.;
             let color = match num.partial_cmp(&half_range) {
                 Some(Ordering::Equal) => [1.0, 1.0, 0.0],
@@ -84,7 +89,7 @@ impl SortView {
             -1.,
             1.,
         );
-        self.tris_data = Some(VertexIndexPair { vertices, indices });
+        VertexIndexPair { vertices, indices }
     }
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
@@ -97,7 +102,12 @@ impl SortView {
                     .range(10..=1000)
                     .ui(ui);
                 if ui.button("Generate").clicked() {
-                    self.generate();
+                    self.values = (0..self.num_range).collect();
+                    self.regenerate_render_data = true;
+                }
+                if ui.button("Shuffle").clicked() {
+                    self.values.shuffle(&mut thread_rng());
+                    self.regenerate_render_data = true;
                 }
             });
     }
