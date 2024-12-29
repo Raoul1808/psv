@@ -193,18 +193,23 @@ impl<'a> WgpuContext<'a> {
 
     pub fn update_buffers(&mut self, pair: VertexIndexPair) {
         let VertexIndexPair { vertices, indices } = pair;
+        let (vertices, indices) = if vertices.is_empty() || indices.is_empty() {
+            (VERTICES, INDICES)
+        } else {
+            (vertices.as_slice(), indices.as_slice())
+        };
         self.vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(&vertices),
+                contents: bytemuck::cast_slice(vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
         self.index_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(&indices),
+                contents: bytemuck::cast_slice(indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
         self.num_indices = indices.len() as u32;

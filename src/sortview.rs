@@ -276,9 +276,15 @@ impl SortView {
                         });
                     }
                 };
-                if ui.button("Generate").clicked() {
-                    self.load_sim();
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Visualize").clicked() {
+                        self.load_sim();
+                    }
+                    if ui.button("Clear").clicked() {
+                        self.sim.clear();
+                        self.regenerate_render_data = true;
+                    }
+                });
             });
         if self.sim.ui(ui) {
             self.regenerate_render_data = true;

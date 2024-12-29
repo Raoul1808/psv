@@ -173,4 +173,11 @@ impl PushSwapSim {
         });
         needs_redraw
     }
+
+    pub fn clear(&mut self) {
+        self.instructions.clear();
+        self.stack_a.clear();
+        self.stack_b.clear();
+        self.program_counter = 0;
+    }
 }
