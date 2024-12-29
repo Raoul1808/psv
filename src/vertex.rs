@@ -46,6 +46,7 @@ impl Vertex {
     }
 }
 
+#[derive(Debug)]
 pub struct VertexIndexPair {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
@@ -53,7 +54,16 @@ pub struct VertexIndexPair {
 
 impl VertexIndexPair {
     pub fn extend(&mut self, other: VertexIndexPair) {
+        if other.vertices.is_empty() || other.indices.is_empty() {
+            return;
+        }
         self.vertices.extend(other.vertices);
-        self.indices.extend(other.indices);
+        if !self.indices.is_empty() {
+            let index_offset = self.indices[self.indices.len() - 2] + 1;
+            let other_indices = other.indices.iter().map(|i| i + index_offset);
+            self.indices.extend(other_indices);
+        } else {
+            self.indices.extend(other.indices);
+        }
     }
 }

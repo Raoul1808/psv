@@ -4,32 +4,38 @@ use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
 use rand::{seq::SliceRandom, thread_rng};
 
-use crate::vertex::{Vertex, VertexIndexPair};
+use crate::{
+    sim::PushSwapSim,
+    vertex::{Vertex, VertexIndexPair},
+};
 
 pub struct SortView {
     projection: Matrix4<f32>,
-    stack_a: Vec<u32>,
-    stack_b: Vec<u32>,
     num_range: u32,
     regenerate_render_data: bool,
+    sim: PushSwapSim,
+    instructions_raw: String,
 }
 
 impl SortView {
     pub fn new() -> Self {
         Self {
             projection: Matrix4::identity(),
-            stack_a: vec![],
-            stack_b: vec![],
             num_range: 10,
             regenerate_render_data: false,
+            sim: Default::default(),
+            instructions_raw: String::new(),
         }
     }
 
     pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
         if self.regenerate_render_data {
             self.regenerate_render_data = false;
-            let mut data = self.generate_tris_data(self.stack_a.as_slice());
-            data.extend(self.generate_tris_data(self.stack_b.as_slice()));
+            self.sim.make_contiguous();
+            let stack_a = self.sim.stack_a();
+            let stack_b = self.sim.stack_b();
+            let mut data = self.generate_tris_data(stack_a, false);
+            data.extend(self.generate_tris_data(stack_b, true));
             Some(data)
         } else {
             None
@@ -51,7 +57,7 @@ impl SortView {
         );
     }
 
-    fn generate_tris_data(&self, stack: &[u32]) -> VertexIndexPair {
+    fn generate_tris_data(&self, stack: &[u32], offset: bool) -> VertexIndexPair {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut next_index = 0;
@@ -70,20 +76,21 @@ impl SortView {
                     [1. - (num - half) / half, 1.0, 0.0]
                 }
             };
+            let o = if offset { self.num_range as f32 } else { 0. };
             vertices.push(Vertex {
-                position: [0.0, i, 0.0],
+                position: [0.0 + o, i, 0.0],
                 color,
             });
             vertices.push(Vertex {
-                position: [num + 1.0, i, 0.0],
+                position: [num + 1.0 + o, i, 0.0],
                 color,
             });
             vertices.push(Vertex {
-                position: [num + 1.0, i + 1.0, 0.0],
+                position: [num + 1.0 + o, i + 1.0, 0.0],
                 color,
             });
             vertices.push(Vertex {
-                position: [0.0, i + 1.0, 0.0],
+                position: [0.0 + o, i + 1.0, 0.0],
                 color,
             });
             indices.extend_from_slice(&[
@@ -100,7 +107,7 @@ impl SortView {
     }
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
-        egui::Window::new("push_swap visualizer")
+        egui::Window::new("Visualization Loader")
             .resizable(true)
             .movable(true)
             .collapsible(true)
@@ -108,15 +115,29 @@ impl SortView {
                 egui::DragValue::new(&mut self.num_range)
                     .range(10..=1000)
                     .ui(ui);
-                if ui.button("Generate").clicked() {
-                    self.stack_a = (0..self.num_range).collect();
+                ui.add(egui::TextEdit::multiline(&mut self.instructions_raw));
+                if ui.button("Load Sorted").clicked() {
+                    let numbers: Vec<_> = (0..self.num_range).collect();
+                    let res = self.sim.load(&numbers, &self.instructions_raw);
+                    if let Err(index) = res {
+                        eprintln!("Loading error: instruction {} is not valid a valid push_swap instruction", index);
+                    }
                     self.update_projection();
                     self.regenerate_render_data = true;
                 }
-                if ui.button("Shuffle").clicked() {
-                    self.stack_a.shuffle(&mut thread_rng());
+                if ui.button("Load Random").clicked() {
+                    let mut numbers: Vec<_> = (0..self.num_range).collect();
+                    numbers.shuffle(&mut thread_rng());
+                    let res = self.sim.load(&numbers, &self.instructions_raw);
+                    if let Err(index) = res {
+                        eprintln!("Loading error: instruction {} is not valid a valid push_swap instruction", index);
+                    }
+                    self.update_projection();
                     self.regenerate_render_data = true;
                 }
             });
+        if self.sim.ui(ui) {
+            self.regenerate_render_data = true;
+        }
     }
 }
