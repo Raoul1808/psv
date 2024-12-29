@@ -147,20 +147,27 @@ impl PushSwapSim {
         true
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context) -> bool {
+    pub fn ui(&mut self, ctx: &egui::Context, play_sim: &mut bool) -> bool {
         let mut needs_redraw = false;
         egui::Window::new("Visualization Playback").show(ctx, |ui| {
             ui.label(format!("Instructions loaded: {}", self.instructions.len()));
             ui.label(format!("Program Counter: {}", self.program_counter));
             ui.horizontal(|ui| {
-                let undo_cond = self.program_counter > 0;
-                let step_cond = self.program_counter < self.instructions.len();
+                let undo_cond = !*play_sim && self.program_counter > 0;
+                let step_cond = !*play_sim && self.program_counter < self.instructions.len();
                 if ui.add_enabled(undo_cond, egui::Button::new("<<")).clicked() {
                     while self.undo() {}
                     needs_redraw = true;
                 }
                 if ui.add_enabled(undo_cond, egui::Button::new("<")).clicked() {
                     needs_redraw = self.undo();
+                }
+                if *play_sim {
+                    if ui.button("Pause").clicked() {
+                        *play_sim = false;
+                    }
+                } else if ui.button("Play").clicked() {
+                    *play_sim = true;
                 }
                 if ui.add_enabled(step_cond, egui::Button::new(">")).clicked() {
                     needs_redraw = self.step();

@@ -50,6 +50,7 @@ pub struct SortView {
     sim: PushSwapSim,
     gen_opt: NumberGeneration,
     source_opt: InstructionsSource,
+    playing_sim: bool,
 }
 
 impl SortView {
@@ -60,6 +61,7 @@ impl SortView {
             sim: Default::default(),
             gen_opt: NumberGeneration::Random(10),
             source_opt: InstructionsSource::Executable(None),
+            playing_sim: false,
         }
     }
 
@@ -202,6 +204,7 @@ impl SortView {
         };
         self.update_projection(numbers.len() as u32);
         self.regenerate_render_data = true;
+        self.playing_sim = false;
     }
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
@@ -286,8 +289,11 @@ impl SortView {
                     }
                 });
             });
-        if self.sim.ui(ui) {
+        if self.sim.ui(ui, &mut self.playing_sim) {
             self.regenerate_render_data = true;
+        }
+        if self.playing_sim {
+            self.regenerate_render_data = self.sim.step();
         }
     }
 }
