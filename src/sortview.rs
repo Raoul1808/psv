@@ -299,6 +299,7 @@ impl SortView {
                         self.sim.clear();
                         self.regenerate_render_data = true;
                     }
+                    // TODO: Add benchmarking option
                 });
             });
         if self
