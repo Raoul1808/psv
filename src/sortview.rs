@@ -1,5 +1,11 @@
 use core::fmt;
-use std::{cmp::Ordering, num::ParseIntError, path::PathBuf, process::Command};
+use std::{
+    cmp::Ordering,
+    num::ParseIntError,
+    path::PathBuf,
+    process::Command,
+    time::{Duration, Instant},
+};
 
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
@@ -51,6 +57,9 @@ pub struct SortView {
     gen_opt: NumberGeneration,
     source_opt: InstructionsSource,
     playing_sim: bool,
+    last_instant: Instant,
+    exec_interval: Duration,
+    duration_accumulated: Duration,
 }
 
 impl SortView {
@@ -62,6 +71,9 @@ impl SortView {
             gen_opt: NumberGeneration::Random(10),
             source_opt: InstructionsSource::Executable(None),
             playing_sim: false,
+            last_instant: Instant::now(),
+            exec_interval: Duration::from_millis(16),
+            duration_accumulated: Duration::ZERO,
         }
     }
 
@@ -289,11 +301,24 @@ impl SortView {
                     }
                 });
             });
-        if self.sim.ui(ui, &mut self.playing_sim) {
+        if self
+            .sim
+            .ui(ui, &mut self.playing_sim, &mut self.exec_interval)
+        {
             self.regenerate_render_data = true;
         }
         if self.playing_sim {
-            self.regenerate_render_data = self.sim.step();
+            let current_instant = Instant::now();
+            let catching_duration = current_instant.duration_since(self.last_instant);
+            while self.duration_accumulated <= catching_duration {
+                self.sim.step();
+                self.regenerate_render_data = true;
+                self.duration_accumulated += self.exec_interval;
+            }
+            self.duration_accumulated -= catching_duration;
+        } else {
+            self.duration_accumulated = Duration::ZERO;
         }
+        self.last_instant = Instant::now();
     }
 }

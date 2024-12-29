@@ -1,5 +1,6 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
+use egui::Widget;
 use parser::parse_push_swap;
 
 mod parser;
@@ -147,7 +148,12 @@ impl PushSwapSim {
         true
     }
 
-    pub fn ui(&mut self, ctx: &egui::Context, play_sim: &mut bool) -> bool {
+    pub fn ui(
+        &mut self,
+        ctx: &egui::Context,
+        play_sim: &mut bool,
+        exec_duration: &mut Duration,
+    ) -> bool {
         let mut needs_redraw = false;
         egui::Window::new("Visualization Playback").show(ctx, |ui| {
             ui.label(format!("Instructions loaded: {}", self.instructions.len()));
@@ -176,6 +182,14 @@ impl PushSwapSim {
                     while self.step() {}
                     needs_redraw = true;
                 }
+            });
+            ui.horizontal(|ui| {
+                let mut millis = exec_duration.as_millis() as u64;
+                egui::Slider::new(&mut millis, 1..=100)
+                    .show_value(false)
+                    .ui(ui);
+                *exec_duration = Duration::from_millis(millis);
+                ui.label(format!("{}ms exec rate", millis));
             });
         });
         needs_redraw
