@@ -1,4 +1,5 @@
-use std::cmp::Ordering;
+use core::fmt;
+use std::{cmp::Ordering, num::ParseIntError, path::PathBuf, process::Command};
 
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
@@ -9,22 +10,56 @@ use crate::{
     vertex::{Vertex, VertexIndexPair},
 };
 
+#[derive(PartialEq)]
+enum NumberGeneration {
+    Ordered(usize),
+    Random(usize),
+    Arbitrary(String),
+}
+
+impl fmt::Display for NumberGeneration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match *self {
+            NumberGeneration::Arbitrary(_) => "User Input",
+            NumberGeneration::Random(_) => "Random",
+            NumberGeneration::Ordered(_) => "Ordered",
+        };
+        write!(f, "{}", str)
+    }
+}
+
+#[derive(PartialEq)]
+enum InstructionsSource {
+    Manual(String),
+    Executable(Option<PathBuf>),
+}
+
+impl fmt::Display for InstructionsSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match *self {
+            InstructionsSource::Manual(_) => "User Input",
+            InstructionsSource::Executable(_) => "Program Output",
+        };
+        write!(f, "{}", str)
+    }
+}
+
 pub struct SortView {
     projection: Matrix4<f32>,
-    num_range: u32,
     regenerate_render_data: bool,
     sim: PushSwapSim,
-    instructions_raw: String,
+    gen_opt: NumberGeneration,
+    source_opt: InstructionsSource,
 }
 
 impl SortView {
     pub fn new() -> Self {
         Self {
             projection: Matrix4::identity(),
-            num_range: 10,
             regenerate_render_data: false,
             sim: Default::default(),
-            instructions_raw: String::new(),
+            gen_opt: NumberGeneration::Random(10),
+            source_opt: InstructionsSource::Executable(None),
         }
     }
 
@@ -34,8 +69,9 @@ impl SortView {
             self.sim.make_contiguous();
             let stack_a = self.sim.stack_a();
             let stack_b = self.sim.stack_b();
-            let mut data = self.generate_tris_data(stack_a, false);
-            data.extend(self.generate_tris_data(stack_b, true));
+            let num_range = stack_a.len() as u32 + stack_b.len() as u32;
+            let mut data = self.generate_tris_data(num_range, stack_a, false);
+            data.extend(self.generate_tris_data(num_range, stack_b, true));
             Some(data)
         } else {
             None
@@ -46,37 +82,30 @@ impl SortView {
         self.projection
     }
 
-    fn update_projection(&mut self) {
-        self.projection = ortho(
-            0.,
-            self.num_range as f32 * 2.,
-            self.num_range as f32,
-            0.,
-            -1.,
-            1.,
-        );
+    fn update_projection(&mut self, num_range: u32) {
+        self.projection = ortho(0., num_range as f32 * 2., num_range as f32, 0., -1., 1.);
     }
 
-    fn generate_tris_data(&self, stack: &[u32], offset: bool) -> VertexIndexPair {
+    fn generate_tris_data(&self, num_range: u32, stack: &[u32], offset: bool) -> VertexIndexPair {
         let mut vertices = vec![];
         let mut indices = vec![];
         let mut next_index = 0;
         for (i, num) in stack.iter().enumerate() {
             let i = i as f32;
             let num = (*num) as f32;
-            let half_range = self.num_range as f32 / 2.;
+            let half_range = num_range as f32 / 2.;
             let color = match num.partial_cmp(&half_range) {
                 Some(Ordering::Equal) => [1.0, 1.0, 0.0],
                 Some(Ordering::Less) => {
-                    let half = self.num_range as f32 / 2.;
+                    let half = num_range as f32 / 2.;
                     [1.0, num / half, 0.0]
                 }
                 Some(Ordering::Greater) | None => {
-                    let half = self.num_range as f32 / 2.;
+                    let half = num_range as f32 / 2.;
                     [1. - (num - half) / half, 1.0, 0.0]
                 }
             };
-            let o = if offset { self.num_range as f32 } else { 0. };
+            let o = if offset { num_range as f32 } else { 0. };
             vertices.push(Vertex {
                 position: [0.0 + o, i, 0.0],
                 color,
@@ -106,34 +135,149 @@ impl SortView {
         VertexIndexPair { vertices, indices }
     }
 
+    fn get_numbers(&self) -> Result<Vec<u32>, ParseIntError> {
+        match &self.gen_opt {
+            NumberGeneration::Ordered(r) => Ok((0..(*r as u32)).collect()),
+            NumberGeneration::Random(r) => {
+                let mut nums: Vec<_> = (0..(*r as u32)).collect();
+                nums.shuffle(&mut thread_rng());
+                Ok(nums)
+            }
+            NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
+        }
+    }
+
+    fn get_instructions_and_numbers(&self) -> Result<(String, Vec<u32>), String> {
+        let (instructions, numbers) = match &self.source_opt {
+            InstructionsSource::Executable(path) => {
+                let path = path.as_ref().ok_or("No executable selected".to_string())?;
+                let numbers = self
+                    .get_numbers()
+                    .map_err(|err| format!("error while parsing numbers: {}", err))?;
+                let args: Vec<_> = numbers.iter().map(|n| n.to_string()).collect();
+                let output = Command::new(path)
+                    .args(args)
+                    .output()
+                    .map_err(|err| format!("error while running program: {}", err))?
+                    .stdout;
+                let instructions = String::from_utf8(output)
+                    .map_err(|err| format!("failed to convert byte array to string: {}", err))?;
+                (instructions, numbers)
+            }
+            InstructionsSource::Manual(instructions) => (
+                instructions.clone(),
+                self.get_numbers()
+                    .map_err(|err| format!("error while parsing numbers: {}", err))?,
+            ),
+        };
+        Ok((instructions, numbers))
+    }
+
+    fn load_sim(&mut self) {
+        let (instructions, numbers) = match self.get_instructions_and_numbers() {
+            Ok(pair) => pair,
+            Err(s) => {
+                rfd::MessageDialog::new()
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_title("Information Error")
+                    .set_description(format!("An error occurred:\n{}", s))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+                return;
+            }
+        };
+        match self.sim.load(&numbers, &instructions) {
+            Ok(_) => {}
+            Err(line) => {
+                rfd::MessageDialog::new()
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_title("Instruction parsing error")
+                    .set_description(format!(
+                        "Instruction {} is not a valid push_swap instruction",
+                        line
+                    ))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }
+        };
+        self.update_projection(numbers.len() as u32);
+        self.regenerate_render_data = true;
+    }
+
     pub fn egui_menu(&mut self, ui: &egui::Context) {
         egui::Window::new("Visualization Loader")
             .resizable(true)
             .movable(true)
             .collapsible(true)
             .show(ui, |ui| {
-                egui::DragValue::new(&mut self.num_range)
-                    .range(10..=1000)
-                    .ui(ui);
-                ui.add(egui::TextEdit::multiline(&mut self.instructions_raw));
-                if ui.button("Load Sorted").clicked() {
-                    let numbers: Vec<_> = (0..self.num_range).collect();
-                    let res = self.sim.load(&numbers, &self.instructions_raw);
-                    if let Err(index) = res {
-                        eprintln!("Loading error: instruction {} is not valid a valid push_swap instruction", index);
+                egui::ComboBox::from_label("Number Generation")
+                    .selected_text(self.gen_opt.to_string())
+                    .show_ui(ui, |ui| {
+                        use NumberGeneration::*;
+                        let (num_gen, str) = match &self.gen_opt {
+                            Ordered(r) | Random(r) => (*r, String::new()),
+                            Arbitrary(s) => (10, s.clone()),
+                        };
+                        ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered");
+                        ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random");
+                        ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input");
+                    });
+                match &mut self.gen_opt {
+                    NumberGeneration::Ordered(r) | NumberGeneration::Random(r) => {
+                        ui.horizontal(|ui| {
+                            egui::DragValue::new(r).ui(ui);
+                            ui.label("Numbers to Generate");
+                        });
                     }
-                    self.update_projection();
-                    self.regenerate_render_data = true;
-                }
-                if ui.button("Load Random").clicked() {
-                    let mut numbers: Vec<_> = (0..self.num_range).collect();
-                    numbers.shuffle(&mut thread_rng());
-                    let res = self.sim.load(&numbers, &self.instructions_raw);
-                    if let Err(index) = res {
-                        eprintln!("Loading error: instruction {} is not valid a valid push_swap instruction", index);
+                    NumberGeneration::Arbitrary(s) => {
+                        ui.horizontal(|ui| {
+                            ui.text_edit_singleline(s);
+                            ui.label("Numbers");
+                        });
                     }
-                    self.update_projection();
-                    self.regenerate_render_data = true;
+                };
+                egui::ComboBox::from_label("Instructions Source")
+                    .selected_text(self.source_opt.to_string())
+                    .show_ui(ui, |ui| {
+                        use InstructionsSource::*;
+                        let (ins, path) = match &self.source_opt {
+                            Manual(i) => (i.clone(), None),
+                            Executable(p) => (String::new(), p.clone()),
+                        };
+                        ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input");
+                        ui.selectable_value(
+                            &mut self.source_opt,
+                            Executable(path),
+                            "Program Output",
+                        );
+                    });
+                match &mut self.source_opt {
+                    InstructionsSource::Manual(i) => {
+                        ui.label("Type push_swap instructions below");
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            ui.add_sized([300., 5.], egui::TextEdit::multiline(i));
+                        });
+                    }
+                    InstructionsSource::Executable(p) => {
+                        ui.horizontal(|ui| {
+                            if ui.button("Browse").clicked() {
+                                let path = rfd::FileDialog::new()
+                                    .set_title("Select push_swap executable")
+                                    .pick_file();
+                                if let Some(path) = path {
+                                    *p = Some(path);
+                                }
+                            }
+                            let path = p
+                                .clone()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or("None".into());
+                            ui.label(format!("Selected: {}", path));
+                        });
+                    }
+                };
+                if ui.button("Generate").clicked() {
+                    self.load_sim();
                 }
             });
         if self.sim.ui(ui) {
