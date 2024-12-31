@@ -1,7 +1,15 @@
 use core::panic;
-use std::{io::stdin, process::Command, str::FromStr};
+use std::{
+    io::{stdin, stdout, Write},
+    process::Command,
+    str::FromStr,
+    sync::{Arc, Mutex},
+    thread::sleep,
+    time::Duration,
+};
 
 use rand::{seq::SliceRandom, thread_rng};
+use threadpool::ThreadPool;
 
 use crate::sim::PushSwapSim;
 
@@ -27,34 +35,64 @@ pub fn benchmark() {
         .expect("no file selected");
     dbg!(&exec_path);
 
-    let mut sim = PushSwapSim::default();
-    let mut results = vec![];
+    let results = Arc::new(Mutex::new(vec![0; tests]));
+    let pool = ThreadPool::new(4);
     for test_num in 0..tests {
-        println!("Running test {}/{}", test_num + 1, tests);
-        let mut numbers: Vec<_> = (0..numbers).collect();
-        numbers.shuffle(&mut thread_rng());
-        let args: Vec<_> = numbers.iter().map(u32::to_string).collect();
-        let instructions = Command::new(exec_path.clone())
-            .args(args)
-            .output()
-            .expect("push_swap command failed to run");
-        let instructions = String::from_utf8(instructions.stdout)
-            .expect("push_swap output is not valid utf-8 text");
-        sim.load(&numbers, &instructions)
-            .expect("invalid instructions");
-        let mut extern_program_counter = 0;
-        while sim.step() {
-            extern_program_counter += 1;
-        }
-        if !sim.stack_a().is_sorted() {
-            eprintln!("Stack A is not sorted!");
-            eprintln!("Starting numbers: {:?}", numbers);
-            eprintln!("Instructions received: {:?}", instructions);
-            panic!("shit happened!!!");
-        }
-        results.push(extern_program_counter);
+        let results = results.clone();
+        let exec_path = exec_path.clone();
+        pool.execute(move || {
+            let mut sim = PushSwapSim::default();
+            let mut numbers: Vec<_> = (0..numbers).collect();
+            numbers.shuffle(&mut thread_rng());
+            let args: Vec<_> = numbers.iter().map(u32::to_string).collect();
+            let instructions = Command::new(exec_path.clone())
+                .args(args)
+                .output()
+                .expect("push_swap command failed to run");
+            let instructions = String::from_utf8(instructions.stdout)
+                .expect("push_swap output is not valid utf-8 text");
+            sim.load(&numbers, &instructions)
+                .expect("invalid instructions");
+            let mut extern_program_counter = 0;
+            while sim.step() {
+                extern_program_counter += 1;
+            }
+            if !sim.stack_a().is_sorted() {
+                eprintln!("Stack A is not sorted!");
+                eprintln!("Starting numbers: {:?}", numbers);
+                eprintln!("Instructions received: {:?}", instructions);
+                panic!("shit happened!!!");
+            }
+            let mut results = results.lock().expect("panic chain!");
+            results[test_num] = extern_program_counter;
+        });
     }
-    println!("Testing done with no errors!");
+    println!("Tests running.");
+    let digit_width = (tests.checked_ilog10().unwrap_or(0) + 1) as usize;
+    loop {
+        let active = pool.active_count();
+        let queued = pool.queued_count();
+        print!(
+            "\rActive workers: {}, Queued: {:>width$}",
+            active,
+            queued,
+            width = digit_width
+        );
+        stdout().flush().expect("failed to flush stdout");
+        if queued == 0 {
+            break;
+        }
+        sleep(Duration::from_secs(1));
+    }
+    println!();
+    pool.join();
+    let panics = pool.panic_count();
+    if panics > 0 {
+        println!("{} thread(s) panicked!", panics);
+    } else {
+        println!("Testing done with no errors!");
+    }
+    let results = results.lock().expect("panic chain!");
     let min = results
         .iter()
         .min()
@@ -63,7 +101,7 @@ pub fn benchmark() {
         .iter()
         .max()
         .expect("there SHOULD be a maximum value in here!");
-    let avg = results.iter().sum::<u128>() / results.len() as u128;
+    let avg = results.iter().sum::<u32>() / results.len() as u32;
     println!("Min: {}, Average: {}, Max: {}", min, avg, max);
     println!("Note: these values may change and can be more or less accurate depending on how many tests you ran.");
 }
