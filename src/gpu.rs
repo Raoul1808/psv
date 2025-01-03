@@ -12,20 +12,21 @@ pub struct WgpuRenderPass {
     pub encoder: wgpu::CommandEncoder,
 }
 
+#[allow(dead_code)]
 pub struct WgpuContext<'a> {
-    pub instance: wgpu::Instance,
-    pub surface: wgpu::Surface<'a>,
+    instance: wgpu::Instance,
+    surface: wgpu::Surface<'a>,
     pub surface_config: wgpu::SurfaceConfiguration,
-    pub adapter: wgpu::Adapter,
+    adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub render_pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub camera_uniform: wgpu::Buffer,
-    pub camera_bind_group: wgpu::BindGroup,
-    pub num_indices: u32,
-    pub clear_color: wgpu::Color,
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    camera_uniform: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    num_indices: u32,
+    clear_color: wgpu::Color,
     pub render_pass: Option<WgpuRenderPass>,
 }
 
