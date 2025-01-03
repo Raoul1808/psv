@@ -17,7 +17,7 @@ mod vertex;
 
 fn main() -> Result<(), EventLoopError> {
     let args: Vec<_> = args().collect();
-    if args.len() > 1 && args[1] == "bench" {
+    if args.len() > 1 && ["b", "bench", "benchmark"].contains(&args[1].as_str()) {
         benchmark();
         exit(0);
     }
