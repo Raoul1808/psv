@@ -51,7 +51,7 @@ pub fn benchmark() {
                 .expect("push_swap command failed to run");
             let instructions = String::from_utf8(instructions.stdout)
                 .expect("push_swap output is not valid utf-8 text");
-            sim.load(&numbers, &instructions)
+            sim.load_normalized(numbers.clone(), &instructions)
                 .expect("invalid instructions");
             let mut extern_program_counter = 0;
             while sim.step() {

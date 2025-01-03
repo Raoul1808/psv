@@ -1,7 +1,9 @@
 use core::fmt;
 use std::{
     cmp::Ordering,
+    collections::HashSet,
     num::ParseIntError,
+    ops::RangeInclusive,
     path::PathBuf,
     process::Command,
     time::{Duration, Instant},
@@ -9,17 +11,21 @@ use std::{
 
 use cgmath::{ortho, Matrix4, SquareMatrix};
 use egui::Widget;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use crate::{
     sim::PushSwapSim,
     vertex::{Vertex, VertexIndexPair},
 };
 
+const RANGE_MIN: i64 = i16::MIN as i64;
+const RANGE_MAX: i64 = i16::MAX as i64;
+
 #[derive(PartialEq)]
 enum NumberGeneration {
     Ordered(usize),
     Random(usize),
+    RandomRanged(RangeInclusive<i64>, usize),
     Arbitrary(String),
 }
 
@@ -27,7 +33,8 @@ impl fmt::Display for NumberGeneration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match *self {
             NumberGeneration::Arbitrary(_) => "User Input",
-            NumberGeneration::Random(_) => "Random",
+            NumberGeneration::Random(_) => "Random Normalized",
+            NumberGeneration::RandomRanged(..) => "Random from Custom Range",
             NumberGeneration::Ordered(_) => "Ordered",
         };
         write!(f, "{}", str)
@@ -149,19 +156,26 @@ impl SortView {
         VertexIndexPair { vertices, indices }
     }
 
-    fn get_numbers(&self) -> Result<Vec<u32>, ParseIntError> {
+    fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
         match &self.gen_opt {
-            NumberGeneration::Ordered(r) => Ok((0..(*r as u32)).collect()),
+            NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
             NumberGeneration::Random(r) => {
-                let mut nums: Vec<_> = (0..(*r as u32)).collect();
+                let mut nums: Vec<_> = (0..(*r as i64)).collect();
                 nums.shuffle(&mut thread_rng());
                 Ok(nums)
+            }
+            NumberGeneration::RandomRanged(r, n) => {
+                let mut map = HashSet::new();
+                while map.len() < *n {
+                    map.insert(thread_rng().gen_range(r.clone()));
+                }
+                Ok(map.into_iter().collect())
             }
             NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
         }
     }
 
-    fn get_instructions_and_numbers(&self) -> Result<(String, Vec<u32>), String> {
+    fn get_instructions_and_numbers(&self) -> Result<(String, Vec<i64>), String> {
         let (instructions, numbers) = match &self.source_opt {
             InstructionsSource::Executable(path) => {
                 let path = path.as_ref().ok_or("No executable selected".to_string())?;
@@ -200,7 +214,7 @@ impl SortView {
                 return;
             }
         };
-        match self.sim.load(&numbers, &instructions) {
+        match self.sim.load_random(&numbers, &instructions) {
             Ok(_) => {}
             Err(line) => {
                 rfd::MessageDialog::new()
@@ -229,12 +243,22 @@ impl SortView {
                     .selected_text(self.gen_opt.to_string())
                     .show_ui(ui, |ui| {
                         use NumberGeneration::*;
-                        let (num_gen, str) = match &self.gen_opt {
-                            Ordered(r) | Random(r) => (*r, String::new()),
-                            Arbitrary(s) => (10, s.clone()),
+                        let (range, num_gen, str) = match &self.gen_opt {
+                            Ordered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new()),
+                            RandomRanged(r, n) => (r.clone(), *n, String::new()),
+                            Arbitrary(s) => (0..=9, 10, s.clone()),
                         };
                         ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered");
-                        ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random");
+                        ui.selectable_value(
+                            &mut self.gen_opt,
+                            Random(num_gen),
+                            "Random Normalized",
+                        );
+                        ui.selectable_value(
+                            &mut self.gen_opt,
+                            RandomRanged(range, num_gen),
+                            "Random from Custom Range",
+                        );
                         ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input");
                     });
                 match &mut self.gen_opt {
@@ -242,6 +266,28 @@ impl SortView {
                         ui.horizontal(|ui| {
                             egui::DragValue::new(r).ui(ui);
                             ui.label("Numbers to Generate");
+                        });
+                    }
+                    NumberGeneration::RandomRanged(r, s) => {
+                        ui.horizontal(|ui| {
+                            egui::DragValue::new(s).ui(ui);
+                            ui.label("Numbers to Generate");
+                        });
+                        ui.horizontal(|ui| {
+                            let mut start = *r.start();
+                            let mut end = *r.end();
+                            ui.label("Random numbers from");
+                            egui::DragValue::new(&mut start)
+                                .range(RANGE_MIN..=(end - 1))
+                                .clamp_existing_to_range(true)
+                                .ui(ui);
+                            ui.label("to");
+                            egui::DragValue::new(&mut end)
+                                .range((start + 1)..=RANGE_MAX)
+                                .clamp_existing_to_range(true)
+                                .ui(ui);
+                            *r = start..=end;
+                            *s = ((end - start + 1) as usize).min(*s);
                         });
                     }
                     NumberGeneration::Arbitrary(s) => {

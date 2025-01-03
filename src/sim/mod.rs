@@ -107,14 +107,30 @@ pub struct PushSwapSim {
     stack_b: Stack,
 }
 
+fn normalized_vec(numbers: &[i64]) -> Vec<u32> {
+    let mut numbers: Vec<_> = numbers.iter().enumerate().collect();
+    numbers.sort_by(|(_, i1), (_, i2)| i1.cmp(i2));
+    let mut numbers: Vec<_> = numbers
+        .into_iter()
+        .enumerate()
+        .map(|(i, (ii, _))| (i, ii))
+        .collect();
+    numbers.sort_by(|(_, i1), (_, i2)| i1.cmp(i2));
+    numbers.into_iter().map(|(i, _)| i as u32).collect()
+}
+
 impl PushSwapSim {
-    pub fn load(&mut self, numbers: &[u32], text: &str) -> Result<(), usize> {
+    pub fn load_normalized(&mut self, numbers: Vec<u32>, text: &str) -> Result<(), usize> {
         self.instructions = parse_push_swap(text)?;
         self.program_counter = 0;
-        let vec = Vec::from(numbers);
-        self.stack_a = VecDeque::from(vec);
+        self.stack_a = VecDeque::from(numbers);
         self.stack_b = VecDeque::new();
         Ok(())
+    }
+
+    pub fn load_random(&mut self, numbers: &[i64], text: &str) -> Result<(), usize> {
+        let numbers = normalized_vec(numbers);
+        self.load_normalized(numbers, text)
     }
 
     pub fn make_contiguous(&mut self) {
@@ -200,5 +216,19 @@ impl PushSwapSim {
         self.stack_a.clear();
         self.stack_b.clear();
         self.program_counter = 0;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::normalized_vec;
+
+    #[test]
+    fn test_normalizer() {
+        let chaotic = &[39512, -727, 1116, -525, 0, 32457, -42, -9837, 69, 52];
+        let expected = &[9, 1, 7, 2, 4, 8, 3, 0, 6, 5];
+
+        let res = normalized_vec(chaotic);
+        assert_eq!(res.as_slice(), expected);
     }
 }
