@@ -18,8 +18,9 @@ This program helps visualise the output of the push\_swap program.
   - Ordered numbers (why would you need this)
 - Visualise based on program output or user input
 - Customisable playback speed (instructions going from 1ms to 100ms)
-- Benchmarking (in the future)
-- Maybe color customisations? idk this readme is just becoming my todo list at this point
+- Benchmarking (command-line only, run `./psv benchmark`, aliases: `bench`, `b`)
+- Clear color customisation
+- Maybe gradient customisation in the future, this is pretty complicated to do
 
 ## Building
 
