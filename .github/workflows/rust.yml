@@ -1,0 +1,24 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+  create:
+    tags:
+      - '*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build release
+      run: cargo build --release
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: psv
+        path: target/release/psv
