@@ -68,6 +68,7 @@ pub struct SortView {
     exec_interval: Duration,
     duration_accumulated: Duration,
     clear_color: [f32; 3],
+    opacity: u8,
 }
 
 impl SortView {
@@ -83,6 +84,7 @@ impl SortView {
             exec_interval: Duration::from_millis(16),
             duration_accumulated: Duration::ZERO,
             clear_color: [0.1, 0.2, 0.3],
+            opacity: 232,
         }
     }
 
@@ -240,6 +242,10 @@ impl SortView {
     }
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
+        ui.style_mut(|ui| {
+            ui.visuals.window_fill =
+                egui::Color32::from_rgba_unmultiplied(0x1b, 0x1b, 0x1b, self.opacity);
+        });
         egui::Window::new("Visualization Loader")
             .resizable(true)
             .movable(true)
@@ -248,6 +254,12 @@ impl SortView {
                 ui.horizontal(|ui| {
                     ui.label("Clear color");
                     ui.color_edit_button_rgb(&mut self.clear_color);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Floating window opacity");
+                    egui::Slider::new(&mut self.opacity, 128..=255)
+                        .show_value(false)
+                        .ui(ui);
                 });
                 egui::ComboBox::from_label("Number Generation")
                     .selected_text(self.gen_opt.to_string())
@@ -355,7 +367,14 @@ impl SortView {
                         self.sim.clear();
                         self.regenerate_render_data = true;
                     }
-                    // TODO: Add benchmarking option
+                    if ui.button("Benchmark").clicked() {
+                        rfd::MessageDialog::new()
+                            .set_title("Benchmarking not available")
+                            .set_level(rfd::MessageLevel::Info)
+                            .set_description("Benchmarking can only be done by running psv with the argument `benchmark` (aliases: `bench` `b`)")
+                            .set_buttons(rfd::MessageButtons::OkCustom("Got it".into()))
+                            .show();
+                    }
                 });
             });
         if self

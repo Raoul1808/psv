@@ -164,6 +164,18 @@ impl PushSwapSim {
         true
     }
 
+    pub fn skip_to(&mut self, counter: usize) -> bool {
+        let mut needs_redraw = false;
+        let counter = counter.clamp(0, self.instructions.len());
+        while self.program_counter < counter {
+            needs_redraw |= self.step();
+        }
+        while self.program_counter > counter {
+            needs_redraw |= self.undo();
+        }
+        needs_redraw
+    }
+
     pub fn ui(
         &mut self,
         ctx: &egui::Context,
@@ -174,10 +186,31 @@ impl PushSwapSim {
         egui::Window::new("Visualization Playback").show(ctx, |ui| {
             ui.label(format!("Instructions loaded: {}", self.instructions.len()));
             ui.label(format!("Program Counter: {}", self.program_counter));
+            ui.scope(|ui| {
+                ui.style_mut().spacing.slider_width = ui.available_width();
+                let mut counter = self.program_counter;
+                let max = if self.instructions.is_empty() {
+                    0
+                } else {
+                    self.instructions.len()
+                };
+                let slider = ui.add_enabled(
+                    !self.instructions.is_empty(),
+                    egui::Slider::new(&mut counter, 0..=max).show_value(false),
+                );
+                if slider.changed() {
+                    self.skip_to(counter);
+                }
+            });
             ui.horizontal(|ui| {
-                let undo_cond = !*play_sim && self.program_counter > 0;
-                let step_cond = !*play_sim && self.program_counter < self.instructions.len();
-                if ui.add_enabled(undo_cond, egui::Button::new("<<")).clicked() {
+                let start_cond = self.program_counter > 0;
+                let end_cond = self.program_counter < self.instructions.len();
+                let undo_cond = !*play_sim && start_cond;
+                let step_cond = !*play_sim && end_cond;
+                if ui
+                    .add_enabled(start_cond, egui::Button::new("<<"))
+                    .clicked()
+                {
                     while self.undo() {}
                     needs_redraw = true;
                 }
@@ -194,7 +227,7 @@ impl PushSwapSim {
                 if ui.add_enabled(step_cond, egui::Button::new(">")).clicked() {
                     needs_redraw = self.step();
                 }
-                if ui.add_enabled(step_cond, egui::Button::new(">>")).clicked() {
+                if ui.add_enabled(end_cond, egui::Button::new(">>")).clicked() {
                     while self.step() {}
                     needs_redraw = true;
                 }
