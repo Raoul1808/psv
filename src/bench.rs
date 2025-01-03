@@ -33,7 +33,6 @@ pub fn benchmark() {
         .set_title("Select push_swap executable path")
         .pick_file()
         .expect("no file selected");
-    dbg!(&exec_path);
 
     let results = Arc::new(Mutex::new(vec![0; tests]));
     let pool = ThreadPool::new(4);
@@ -70,14 +69,8 @@ pub fn benchmark() {
     println!("Tests running.");
     let digit_width = (tests.checked_ilog10().unwrap_or(0) + 1) as usize;
     loop {
-        let active = pool.active_count();
         let queued = pool.queued_count();
-        print!(
-            "\rActive workers: {}, Queued: {:>width$}",
-            active,
-            queued,
-            width = digit_width
-        );
+        print!("\rTests left: {:<width$}", queued, width = digit_width);
         stdout().flush().expect("failed to flush stdout");
         if queued == 0 {
             break;
