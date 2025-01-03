@@ -67,6 +67,7 @@ pub struct SortView {
     last_instant: Instant,
     exec_interval: Duration,
     duration_accumulated: Duration,
+    clear_color: [f32; 3],
 }
 
 impl SortView {
@@ -81,6 +82,7 @@ impl SortView {
             last_instant: Instant::now(),
             exec_interval: Duration::from_millis(16),
             duration_accumulated: Duration::ZERO,
+            clear_color: [0.1, 0.2, 0.3],
         }
     }
 
@@ -101,6 +103,10 @@ impl SortView {
 
     pub fn get_projection_matrix(&self) -> Matrix4<f32> {
         self.projection
+    }
+
+    pub fn clear_color(&self) -> [f32; 3] {
+        self.clear_color
     }
 
     fn update_projection(&mut self, num_range: u32) {
@@ -239,6 +245,10 @@ impl SortView {
             .movable(true)
             .collapsible(true)
             .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Clear color");
+                    ui.color_edit_button_rgb(&mut self.clear_color);
+                });
                 egui::ComboBox::from_label("Number Generation")
                     .selected_text(self.gen_opt.to_string())
                     .show_ui(ui, |ui| {

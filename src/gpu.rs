@@ -221,8 +221,13 @@ impl<'a> WgpuContext<'a> {
             .write_buffer(&self.camera_uniform, 0, bytemuck::cast_slice(&[matrix]));
     }
 
-    pub fn update_clear_color(&mut self, color: impl Into<wgpu::Color>) {
-        self.clear_color = color.into();
+    pub fn update_clear_color(&mut self, color: [f32; 3]) {
+        self.clear_color = wgpu::Color {
+            r: color[0] as f64,
+            g: color[1] as f64,
+            b: color[2] as f64,
+            a: 1.0,
+        };
     }
 
     pub fn begin_render_pass(&mut self) {

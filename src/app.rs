@@ -62,6 +62,7 @@ impl App<'_> {
             );
         }
 
+        wgpu_ctx.update_clear_color(sort_view.clear_color());
         wgpu_ctx.submit_render_passes();
     }
 }
