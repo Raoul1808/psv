@@ -2,6 +2,7 @@ use core::fmt;
 use std::{
     cmp::Ordering,
     collections::HashSet,
+    fmt::Write,
     num::ParseIntError,
     ops::RangeInclusive,
     path::PathBuf,
@@ -68,6 +69,7 @@ pub struct SortView {
     exec_interval: Duration,
     duration_accumulated: Duration,
     clear_color: [f32; 3],
+    number_args: String,
     opacity: u8,
 }
 
@@ -85,6 +87,7 @@ impl SortView {
             duration_accumulated: Duration::ZERO,
             clear_color: [0.1, 0.2, 0.3],
             opacity: 232,
+            number_args: String::new(),
         }
     }
 
@@ -222,6 +225,14 @@ impl SortView {
                 return;
             }
         };
+        self.number_args =
+            numbers
+                .iter()
+                .map(|n| n.to_string())
+                .fold(String::new(), |mut acc, n| {
+                    let _ = write!(acc, "{} ", n);
+                    acc
+                });
         match self.sim.load_random(&numbers, &instructions) {
             Ok(_) => {}
             Err(line) => {
@@ -365,7 +376,12 @@ impl SortView {
                     }
                     if ui.button("Clear").clicked() {
                         self.sim.clear();
+                        self.number_args.clear();
                         self.regenerate_render_data = true;
+                    }
+                    if ui.button("Copy number arguments").clicked() {
+                        let copy = self.number_args.clone();
+                        ui.output_mut(move |o| o.copied_text = copy);
                     }
                     if ui.button("Benchmark").clicked() {
                         rfd::MessageDialog::new()
