@@ -2,7 +2,7 @@
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
     pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub color: [f32; 4],
 }
 
 unsafe impl bytemuck::Zeroable for Vertex {}
@@ -28,15 +28,15 @@ unsafe impl bytemuck::Pod for Vertex {}
 pub const VERTICES: &[Vertex] = &[
     Vertex {
         position: [-2., -2., -2.],
-        color: [0., 0., 0.],
+        color: [0., 0., 0., 1.],
     },
     Vertex {
         position: [-2., -3., -2.],
-        color: [0., 0., 0.],
+        color: [0., 0., 0., 1.],
     },
     Vertex {
         position: [-3., -3., -2.],
-        color: [0., 0., 0.],
+        color: [0., 0., 0., 1.],
     },
 ];
 pub const INDICES: &[u32] = &[0, 1, 2];
@@ -55,7 +55,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }

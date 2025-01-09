@@ -1,6 +1,5 @@
 use core::fmt;
 use std::{
-    cmp::Ordering,
     collections::HashSet,
     fmt::Write,
     num::ParseIntError,
@@ -15,6 +14,7 @@ use egui::Widget;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use crate::{
+    gui::VisualOptions,
     sim::PushSwapSim,
     vertex::{Vertex, VertexIndexPair},
 };
@@ -61,6 +61,8 @@ impl fmt::Display for InstructionsSource {
 pub struct SortView {
     projection: Matrix4<f32>,
     regenerate_render_data: bool,
+    show_visual: bool,
+    visual: VisualOptions,
     sim: PushSwapSim,
     gen_opt: NumberGeneration,
     source_opt: InstructionsSource,
@@ -68,9 +70,7 @@ pub struct SortView {
     last_instant: Instant,
     exec_interval: Duration,
     duration_accumulated: Duration,
-    clear_color: [f32; 3],
     number_args: String,
-    opacity: u8,
 }
 
 impl SortView {
@@ -78,6 +78,8 @@ impl SortView {
         Self {
             projection: Matrix4::identity(),
             regenerate_render_data: false,
+            show_visual: false,
+            visual: VisualOptions::default(),
             sim: Default::default(),
             gen_opt: NumberGeneration::Random(10),
             source_opt: InstructionsSource::Executable(None),
@@ -85,8 +87,6 @@ impl SortView {
             last_instant: Instant::now(),
             exec_interval: Duration::from_millis(16),
             duration_accumulated: Duration::ZERO,
-            clear_color: [0.1, 0.2, 0.3],
-            opacity: 232,
             number_args: String::new(),
         }
     }
@@ -111,7 +111,7 @@ impl SortView {
     }
 
     pub fn clear_color(&self) -> [f32; 3] {
-        self.clear_color
+        self.visual.clear_color()
     }
 
     fn update_projection(&mut self, num_range: u32) {
@@ -125,19 +125,9 @@ impl SortView {
         for (i, num) in stack.iter().enumerate() {
             let i = i as f32;
             let num = (*num) as f32;
-            let half_range = num_range as f32 / 2.;
-            let color = match num.partial_cmp(&half_range) {
-                Some(Ordering::Equal) => [1.0, 1.0, 0.0],
-                Some(Ordering::Less) => {
-                    let half = num_range as f32 / 2.;
-                    [1.0, num / half, 0.0]
-                }
-                Some(Ordering::Greater) | None => {
-                    let half = num_range as f32 / 2.;
-                    [1. - (num - half) / half, 1.0, 0.0]
-                }
-            };
             let o = if offset { num_range as f32 } else { 0. };
+            let t = num / num_range as f32;
+            let color = self.visual.color_at(t);
             vertices.push(Vertex {
                 position: [0.0 + o, i, 0.0],
                 color,
@@ -255,23 +245,14 @@ impl SortView {
     pub fn egui_menu(&mut self, ui: &egui::Context) {
         ui.style_mut(|ui| {
             ui.visuals.window_fill =
-                egui::Color32::from_rgba_unmultiplied(0x1b, 0x1b, 0x1b, self.opacity);
+                egui::Color32::from_rgba_unmultiplied(0x1b, 0x1b, 0x1b, self.visual.opacity());
         });
         egui::Window::new("Visualization Loader")
             .resizable(true)
             .movable(true)
             .collapsible(true)
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Clear color");
-                    ui.color_edit_button_rgb(&mut self.clear_color);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Floating window opacity");
-                    egui::Slider::new(&mut self.opacity, 128..=255)
-                        .show_value(false)
-                        .ui(ui);
-                });
+                ui.checkbox(&mut self.show_visual, "Show Visual Options Window");
                 egui::ComboBox::from_label("Number Generation")
                     .selected_text(self.gen_opt.to_string())
                     .show_ui(ui, |ui| {
@@ -341,7 +322,7 @@ impl SortView {
                         ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input");
                         ui.selectable_value(
                             &mut self.source_opt,
-                            Executable(path),
+                       Executable(path),
                             "Program Output",
                         );
                     });
@@ -393,6 +374,7 @@ impl SortView {
                     }
                 });
             });
+        self.visual.ui(ui, &mut self.show_visual);
         if self
             .sim
             .ui(ui, &mut self.playing_sim, &mut self.exec_interval)

@@ -11,6 +11,8 @@ mod app;
 mod bench;
 mod egui_tools;
 mod gpu;
+mod gradient;
+mod gui;
 mod sim;
 mod sortview;
 mod vertex;
