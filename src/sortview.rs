@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use cgmath::{Matrix4, SquareMatrix};
 
 use crate::{
-    gui::{LoadingOptions, VisualOptions},
+    gui::{LoadingOptions, PlaybackControls, VisualOptions},
     sim::PushSwapSim,
     vertex::{Vertex, VertexIndexPair},
 };
@@ -15,6 +15,8 @@ pub struct SortView {
     visual: VisualOptions,
     show_load: bool,
     load: LoadingOptions,
+    show_playback: bool,
+    playback: PlaybackControls,
     sim: PushSwapSim,
     playing_sim: bool,
     last_instant: Instant,
@@ -31,6 +33,8 @@ impl SortView {
             visual: VisualOptions::default(),
             show_load: true,
             load: LoadingOptions::default(),
+            show_playback: false,
+            playback: PlaybackControls,
             sim: Default::default(),
             playing_sim: false,
             last_instant: Instant::now(),
@@ -113,6 +117,7 @@ impl SortView {
             .show(ui, |ui| {
                 ui.checkbox(&mut self.show_visual, "Show Visual Options Window");
                 ui.checkbox(&mut self.show_load, "Show Loading Options Window");
+                ui.checkbox(&mut self.show_playback, "Show Playback Controls");
             });
         self.visual.ui(ui, &mut self.show_visual);
         self.load.ui(
@@ -122,13 +127,16 @@ impl SortView {
             &mut self.regenerate_render_data,
             &mut self.projection,
             &mut self.playing_sim,
+            &mut self.show_playback,
         );
-        if self
-            .sim
-            .ui(ui, &mut self.playing_sim, &mut self.exec_interval)
-        {
-            self.regenerate_render_data = true;
-        }
+        self.playback.ui(
+            ui,
+            &mut self.show_playback,
+            &mut self.sim,
+            &mut self.playing_sim,
+            &mut self.exec_interval,
+            &mut self.regenerate_render_data,
+        );
         if self.playing_sim {
             let current_instant = Instant::now();
             let catching_duration = current_instant.duration_since(self.last_instant);

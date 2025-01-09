@@ -1,6 +1,5 @@
-use std::{collections::VecDeque, time::Duration};
+use std::collections::VecDeque;
 
-use egui::Widget;
 use parser::parse_push_swap;
 
 mod parser;
@@ -146,6 +145,14 @@ impl PushSwapSim {
         self.stack_b.as_slices().0
     }
 
+    pub fn program_counter(&self) -> usize {
+        self.program_counter
+    }
+
+    pub fn instructions(&self) -> &[PushSwapInstruction] {
+        &self.instructions
+    }
+
     pub fn step(&mut self) -> bool {
         if self.program_counter >= self.instructions.len() {
             return false;
@@ -173,74 +180,6 @@ impl PushSwapSim {
         while self.program_counter > counter {
             needs_redraw |= self.undo();
         }
-        needs_redraw
-    }
-
-    pub fn ui(
-        &mut self,
-        ctx: &egui::Context,
-        play_sim: &mut bool,
-        exec_duration: &mut Duration,
-    ) -> bool {
-        let mut needs_redraw = false;
-        egui::Window::new("Visualization Playback").show(ctx, |ui| {
-            ui.label(format!("Instructions loaded: {}", self.instructions.len()));
-            ui.label(format!("Program Counter: {}", self.program_counter));
-            ui.scope(|ui| {
-                ui.style_mut().spacing.slider_width = ui.available_width();
-                let mut counter = self.program_counter;
-                let max = if self.instructions.is_empty() {
-                    0
-                } else {
-                    self.instructions.len()
-                };
-                let slider = ui.add_enabled(
-                    !self.instructions.is_empty(),
-                    egui::Slider::new(&mut counter, 0..=max).show_value(false),
-                );
-                if slider.changed() {
-                    self.skip_to(counter);
-                }
-            });
-            ui.horizontal(|ui| {
-                let start_cond = self.program_counter > 0;
-                let end_cond = self.program_counter < self.instructions.len();
-                let undo_cond = !*play_sim && start_cond;
-                let step_cond = !*play_sim && end_cond;
-                if ui
-                    .add_enabled(start_cond, egui::Button::new("<<"))
-                    .clicked()
-                {
-                    while self.undo() {}
-                    needs_redraw = true;
-                }
-                if ui.add_enabled(undo_cond, egui::Button::new("<")).clicked() {
-                    needs_redraw = self.undo();
-                }
-                if *play_sim {
-                    if ui.button("Pause").clicked() {
-                        *play_sim = false;
-                    }
-                } else if ui.button("Play").clicked() {
-                    *play_sim = true;
-                }
-                if ui.add_enabled(step_cond, egui::Button::new(">")).clicked() {
-                    needs_redraw = self.step();
-                }
-                if ui.add_enabled(end_cond, egui::Button::new(">>")).clicked() {
-                    while self.step() {}
-                    needs_redraw = true;
-                }
-            });
-            ui.horizontal(|ui| {
-                let mut millis = exec_duration.as_millis() as u64;
-                egui::Slider::new(&mut millis, 1..=100)
-                    .show_value(false)
-                    .ui(ui);
-                *exec_duration = Duration::from_millis(millis);
-                ui.label(format!("{}ms exec rate", millis));
-            });
-        });
         needs_redraw
     }
 

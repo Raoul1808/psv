@@ -155,6 +155,7 @@ impl LoadingOptions {
         update_projection(projection, numbers.len() as f32);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn ui(
         &mut self,
         ctx: &Context,
@@ -163,6 +164,7 @@ impl LoadingOptions {
         regenerate_render_data: &mut bool,
         projection: &mut cgmath::Matrix4<f32>,
         playing_sim: &mut bool,
+        show_playback: &mut bool,
     ) {
         Window::new("Loading Options").open(open).show(ctx, |ui| {
             ComboBox::from_label("Number Generation")
@@ -261,12 +263,14 @@ impl LoadingOptions {
                     self.load_sim(sim, projection);
                     *regenerate_render_data = true;
                     *playing_sim = false;
+                    *show_playback = true;
                 }
                 if ui.button("Clear").clicked() {
                     sim.clear();
                     self.number_args.clear();
                     *regenerate_render_data = true;
                     *playing_sim = false;
+                    *show_playback = false;
                 }
                 if ui.button("Copy numbers to clipboard").clicked() {
                     let copy = self.number_args.clone();
