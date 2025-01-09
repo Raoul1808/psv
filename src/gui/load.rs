@@ -253,7 +253,7 @@ impl LoadingOptions {
                             .clone()
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or("None".into());
-                        ui.label(format!("Selected: {}", path));
+                        ui.label(format!("Selected Program: {}", path));
                     });
                 }
             };
