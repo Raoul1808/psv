@@ -24,6 +24,7 @@ This program helps visualise the output of the push\_swap program.
 - Sorting number color customisation
   - Gradient color customisation
   - Group color customisation
+- A few number arrangement presets you can test your push\_swap on for fun!
 
 ## Building
 
