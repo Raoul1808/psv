@@ -12,6 +12,8 @@ use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use crate::sim::PushSwapSim;
 
+use super::NUMBER_PRESETS;
+
 const RANGE_MIN: i64 = i16::MIN as i64;
 const RANGE_MAX: i64 = i16::MAX as i64;
 
@@ -21,6 +23,7 @@ enum NumberGeneration {
     Random(usize),
     RandomRanged(RangeInclusive<i64>, usize),
     Arbitrary(String),
+    Preset(usize),
 }
 
 impl Display for NumberGeneration {
@@ -30,6 +33,7 @@ impl Display for NumberGeneration {
             NumberGeneration::Random(_) => "Random Normalized",
             NumberGeneration::RandomRanged(..) => "Random from Custom Range",
             NumberGeneration::Ordered(_) => "Ordered",
+            NumberGeneration::Preset(_) => "Preset",
         };
         write!(f, "{}", str)
     }
@@ -88,6 +92,7 @@ impl LoadingOptions {
                 Ok(map.into_iter().collect())
             }
             NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
+            NumberGeneration::Preset(i) => Ok(NUMBER_PRESETS[*i].1.to_vec()),
         }
     }
 
@@ -171,10 +176,11 @@ impl LoadingOptions {
                 .selected_text(self.gen_opt.to_string())
                 .show_ui(ui, |ui| {
                     use NumberGeneration::*;
-                    let (range, num_gen, str) = match &self.gen_opt {
-                        Ordered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new()),
-                        RandomRanged(r, n) => (r.clone(), *n, String::new()),
-                        Arbitrary(s) => (0..=9, 10, s.clone()),
+                    let (range, num_gen, str, i) = match &self.gen_opt {
+                        Ordered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new(), 0),
+                        RandomRanged(r, n) => (r.clone(), *n, String::new(), 0),
+                        Arbitrary(s) => (0..=9, 10, s.clone(), 0),
+                        Preset(i) => (0..=9, 10, String::new(), *i),
                     };
                     ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered");
                     ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized");
@@ -184,6 +190,7 @@ impl LoadingOptions {
                         "Random from Custom Range",
                     );
                     ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input");
+                    ui.selectable_value(&mut self.gen_opt, Preset(i), "Preset");
                 });
             match &mut self.gen_opt {
                 NumberGeneration::Ordered(r) | NumberGeneration::Random(r) => {
@@ -219,6 +226,13 @@ impl LoadingOptions {
                         ui.text_edit_singleline(s);
                         ui.label("Numbers");
                     });
+                }
+                NumberGeneration::Preset(i) => {
+                    ComboBox::from_label("Number Preset")
+                        .selected_text(NUMBER_PRESETS[*i].0)
+                        .show_index(ui, i, NUMBER_PRESETS.len(), |i| {
+                            NUMBER_PRESETS[i].0
+                        });
                 }
             };
             ComboBox::from_label("Instructions Source")
