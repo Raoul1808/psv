@@ -12,6 +12,7 @@ This program helps visualise the output of the push\_swap program.
 
 ## Features
 
+- A nice and organised GUI
 - Number sequence generation
   - Random sequence
   - User input
@@ -20,7 +21,9 @@ This program helps visualise the output of the push\_swap program.
 - Customisable playback speed (instructions going from 1ms to 100ms)
 - Benchmarking (command-line only, run `./psv benchmark`, aliases: `bench`, `b`)
 - Clear color customisation
-- Maybe gradient customisation in the future, this is pretty complicated to do
+- Sorting number color customisation
+  - Gradient color customisation
+  - Group color customisation
 
 ## Building
 
