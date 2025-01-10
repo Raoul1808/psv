@@ -4,9 +4,16 @@ use egui::{Align, Button, Layout, Sense, Slider, Ui, Widget, Window};
 
 use crate::sim::PushSwapSim;
 
-#[derive(Default)]
 pub struct PlaybackControls {
     auto_scroll_table: bool,
+}
+
+impl Default for PlaybackControls {
+    fn default() -> Self {
+        Self {
+            auto_scroll_table: true,
+        }
+    }
 }
 
 impl PlaybackControls {
