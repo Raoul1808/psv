@@ -66,6 +66,27 @@ impl SortView {
         self.visual.clear_color()
     }
 
+    pub fn keyboard_input(&mut self, event: &winit::event::KeyEvent) {
+        use winit::keyboard::{KeyCode, PhysicalKey::Code};
+        if !event.state.is_pressed() {
+            return;
+        }
+        match event.physical_key {
+            Code(KeyCode::Space) => self.playing_sim = !self.playing_sim,
+            Code(KeyCode::ArrowLeft) => {
+                if !self.playing_sim {
+                    self.regenerate_render_data = self.sim.undo();
+                }
+            }
+            Code(KeyCode::ArrowRight) => {
+                if !self.playing_sim {
+                    self.regenerate_render_data = self.sim.step();
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn generate_tris_data(&self, num_range: u32, stack: &[u32], offset: bool) -> VertexIndexPair {
         let mut vertices = vec![];
         let mut indices = vec![];

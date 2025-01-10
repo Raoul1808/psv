@@ -50,6 +50,10 @@ impl EguiRenderer {
         let _ = self.state.on_window_event(window, event);
     }
 
+    pub fn wants_keyboard_input(&self) -> bool {
+        self.context().wants_keyboard_input()
+    }
+
     pub fn ppp(&mut self, v: f32) {
         self.context().set_pixels_per_point(v);
     }

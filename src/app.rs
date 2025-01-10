@@ -22,7 +22,10 @@ pub struct App<'a> {
 }
 
 impl App<'_> {
-    fn handle_input(&mut self, _event: &KeyEvent) {}
+    fn handle_input(&mut self, event: &KeyEvent) {
+        let sort_view = self.sort_view.as_mut().expect("no sort view");
+        sort_view.keyboard_input(event);
+    }
 
     fn handle_redraw(&mut self) {
         let egui_renderer = self.egui_renderer.as_mut().expect("no egui renderer");
@@ -91,23 +94,24 @@ impl ApplicationHandler for App<'_> {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        self.egui_renderer
-            .as_mut()
-            .expect("no egui renderer")
-            .handle_input(self.window.as_ref().unwrap(), &event);
+        let egui_renderer = self.egui_renderer.as_mut().expect("no egui renderer");
+        let window = self.window.as_ref().expect("no window");
+        egui_renderer.handle_input(window, &event);
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.state.is_pressed() {
-                    if let Key::Named(winit::keyboard::NamedKey::Escape) =
-                        event.logical_key.as_ref()
-                    {
-                        event_loop.exit();
+                if !egui_renderer.wants_keyboard_input() {
+                    if event.state.is_pressed() {
+                        if let Key::Named(winit::keyboard::NamedKey::Escape) =
+                            event.logical_key.as_ref()
+                        {
+                            event_loop.exit();
+                        }
                     }
+                    self.handle_input(&event);
                 }
-                self.handle_input(&event);
             }
             WindowEvent::Resized(new_size) => {
                 if let Some(wgpu_ctx) = self.wgpu_ctx.as_mut() {
