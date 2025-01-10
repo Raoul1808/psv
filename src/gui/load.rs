@@ -182,15 +182,15 @@ impl LoadingOptions {
                         Arbitrary(s) => (0..=9, 10, s.clone(), 0),
                         Preset(i) => (0..=9, 10, String::new(), *i),
                     };
-                    ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered");
-                    ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized");
+                    ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered").on_hover_text("Numbers will be generated in order from 0 to n.");
+                    ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized").on_hover_text("Numbers will be generated from 0 to n, then they will be shuffled.");
                     ui.selectable_value(
                         &mut self.gen_opt,
                         RandomRanged(range, num_gen),
                         "Random from Custom Range",
-                    );
-                    ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input");
-                    ui.selectable_value(&mut self.gen_opt, Preset(i), "Preset");
+                    ).on_hover_text("Numbers will be picked randomly from the specified range. Visually, the numbers will appear normalized.");
+                    ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input").on_hover_text("You will be able to input a list of numbers yourself.");
+                    ui.selectable_value(&mut self.gen_opt, Preset(i), "Preset").on_hover_text("Numbers will be selected from a few hardcoded presets. This option was added just for fun, but some of the tests in here are known to break some programs.");
                 });
             match &mut self.gen_opt {
                 NumberGeneration::Ordered(r) | NumberGeneration::Random(r) => {
@@ -243,8 +243,8 @@ impl LoadingOptions {
                         Manual(i) => (i.clone(), None),
                         Executable(p) => (String::new(), p.clone()),
                     };
-                    ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input");
-                    ui.selectable_value(&mut self.source_opt, Executable(path), "Program Output");
+                    ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input").on_hover_text("You will be able to input a list of push_swap instructions yourself.");
+                    ui.selectable_value(&mut self.source_opt, Executable(path), "Program Output").on_hover_text("The selected program will be executed with the generated numbers above fed as input to the program. The output of the program will be interpreted as a list of push_swap instructions.");
                 });
             match &mut self.source_opt {
                 InstructionsSource::Manual(i) => {
@@ -286,7 +286,7 @@ impl LoadingOptions {
                     *playing_sim = false;
                     *show_playback = false;
                 }
-                if ui.button("Copy numbers to clipboard").clicked() {
+                if ui.button("Copy numbers to clipboard").on_hover_text("The list of generated numbers will be collapsed into a single line that can be pasted as program arguments. Useful if you want to debug a random sequence that was just generated.").clicked() {
                     let copy = self.number_args.clone();
                     ui.output_mut(move |o| o.copied_text = copy);
                 }

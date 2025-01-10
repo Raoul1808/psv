@@ -181,12 +181,16 @@ impl VisualOptions {
                         &mut self.sort_colors,
                         SortColors::FromGradient(gradient),
                         "From Gradient",
-                    );
+                    ).on_hover_text("Sorted numbers' color will be determined by a color gradient.");
                     ui.selectable_value(
                         &mut self.sort_colors,
                         SortColors::ColoredSubdisions(subdivisions),
                         "Colored Subdivisions",
-                    );
+                    ).on_hover_ui(|ui| {
+                        ui.label("Sorted numbers will have their color determined in groups.");
+                        ui.label("e.g: if you have defined 3 colors for 300 numbers, the first 100 numbers will be colored with the first color, the second 100 with the second color, and the third 100 with the third color.");
+                        ui.label("Useful to visualize sorting algorithms that group together numbers in big range groups.");
+                    });
                 });
             match &mut self.sort_colors {
                 SortColors::FromGradient(g) => g.ui(ui),

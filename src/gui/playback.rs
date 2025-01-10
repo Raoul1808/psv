@@ -75,17 +75,26 @@ impl PlaybackControls {
                         while sim.undo() {}
                         *regenerate_render_data = true;
                     }
-                    if ui.add_enabled(undo_cond, Button::new("<")).clicked() {
+                    if ui
+                        .add_enabled(undo_cond, Button::new("<"))
+                        .on_hover_text("You can press the right arrow key to step backwards.")
+                        .clicked()
+                    {
                         *regenerate_render_data = sim.undo();
                     }
-                    if *play_sim {
-                        if ui.button("Pause").clicked() {
-                            *play_sim = false;
-                        }
-                    } else if ui.button("Play").clicked() {
-                        *play_sim = true;
+                    let button_text = if *play_sim { "Pause" } else { "Play" };
+                    if ui
+                        .button(button_text)
+                        .on_hover_text("You can press spacebar to play/pause the simulation.")
+                        .clicked()
+                    {
+                        *play_sim = !*play_sim;
                     }
-                    if ui.add_enabled(step_cond, Button::new(">")).clicked() {
+                    if ui
+                        .add_enabled(step_cond, Button::new(">"))
+                        .on_hover_text("You can press the left arrow key to step forward.")
+                        .clicked()
+                    {
                         *regenerate_render_data = sim.step();
                     }
                     if ui.add_enabled(end_cond, Button::new(">>")).clicked() {
@@ -95,7 +104,7 @@ impl PlaybackControls {
                 });
                 ui.horizontal(|ui| {
                     let mut millis = exec_duration.as_millis() as u64;
-                    Slider::new(&mut millis, 1..=50).show_value(false).ui(ui);
+                    Slider::new(&mut millis, 1..=50).show_value(false).ui(ui).on_hover_text("Drag this slider to change the execution rate (in milliseconds between 2 instructions)");
                     *exec_duration = Duration::from_millis(millis);
                     ui.label(format!("{}ms exec rate", millis));
                 });

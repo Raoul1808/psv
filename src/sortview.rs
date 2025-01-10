@@ -136,9 +136,9 @@ impl SortView {
             .movable(true)
             .collapsible(true)
             .show(ui, |ui| {
-                ui.checkbox(&mut self.show_visual, "Show Visual Options Window");
-                ui.checkbox(&mut self.show_load, "Show Loading Options Window");
-                ui.checkbox(&mut self.show_playback, "Show Playback Controls");
+                ui.checkbox(&mut self.show_visual, "Show Visual Options Window").on_hover_text("Shows a floating window with visual-related options such as changing used colors and changing the transparency of the GUI windows.");
+                ui.checkbox(&mut self.show_load, "Show Loading Options Window").on_hover_text("Shows a floating window to generate a sequence of numbers and load push_swap instructions.");
+                ui.checkbox(&mut self.show_playback, "Show Playback Controls").on_hover_text("Shows a floating window with playback controls and a table of running instructions.");
             });
         self.visual.ui(ui, &mut self.show_visual);
         self.load.ui(
