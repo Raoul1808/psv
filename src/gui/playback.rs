@@ -1,10 +1,13 @@
-use std::time::Duration;
+use std::{cmp::Ordering, time::Duration};
 
-use egui::{Button, Slider, Widget, Window};
+use egui::{Align, Button, Layout, Sense, Slider, Ui, Widget, Window};
 
 use crate::sim::PushSwapSim;
 
-pub struct PlaybackControls;
+#[derive(Default)]
+pub struct PlaybackControls {
+    auto_scroll_table: bool,
+}
 
 impl PlaybackControls {
     pub fn ui(
@@ -89,6 +92,91 @@ impl PlaybackControls {
                     *exec_duration = Duration::from_millis(millis);
                     ui.label(format!("{}ms exec rate", millis));
                 });
+                ui.separator();
+                ui.collapsing("push_swap instruction flow", |ui| {
+                    self.instructions_table_ui(ui, sim, *play_sim, regenerate_render_data);
+                });
             });
+    }
+
+    fn instructions_table_ui(
+        &mut self,
+        ui: &mut Ui,
+        sim: &mut PushSwapSim,
+        playing_sim: bool,
+        regenerate_render_data: &mut bool,
+    ) {
+        use egui_extras::{Column, TableBuilder};
+
+        ui.checkbox(&mut self.auto_scroll_table, "Scroll to current instruction");
+        let text_height = egui::TextStyle::Body
+            .resolve(ui.style())
+            .size
+            .max(ui.spacing().interact_size.y);
+        let available_height = ui.available_height();
+        let mut table = TableBuilder::new(ui)
+            .striped(true)
+            .cell_layout(Layout::left_to_right(Align::Center))
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::remainder())
+            .min_scrolled_height(0.0)
+            .max_scroll_height(available_height)
+            .sense(Sense::click())
+            .animate_scrolling(false);
+
+        if playing_sim && self.auto_scroll_table {
+            table = table.scroll_to_row(sim.program_counter() + 1, Some(Align::Center));
+        }
+
+        let total_instructions = sim.instructions().len();
+        let mut skip = None;
+        table
+            .header(10.0, |mut header| {
+                header.col(|_| {});
+                header.col(|ui| {
+                    ui.strong("Index");
+                });
+                header.col(|ui| {
+                    ui.strong("Instruction");
+                });
+            })
+            .body(|body| {
+                body.rows(text_height, total_instructions + 1, |mut row| {
+                    let row_index = row.index();
+                    let reached_end = row_index == total_instructions;
+                    row.set_selected(row_index == sim.program_counter());
+                    row.col(|ui| match row_index.cmp(&sim.program_counter()) {
+                        Ordering::Less => {
+                            ui.label("✔");
+                        }
+                        Ordering::Equal => {
+                            if !reached_end {
+                                ui.label("➡");
+                            }
+                        }
+                        Ordering::Greater => {}
+                    });
+                    row.col(|ui| {
+                        if !reached_end {
+                            ui.label(format!("{}", row_index + 1));
+                        }
+                    });
+                    row.col(|ui| {
+                        if reached_end {
+                            ui.label("End of program");
+                        } else {
+                            ui.label(sim.instructions()[row_index].to_string());
+                        }
+                    });
+                    if row.response().clicked() {
+                        skip = Some(row_index);
+                    }
+                });
+            });
+        if let Some(index) = skip {
+            sim.skip_to(index);
+            *regenerate_render_data = true;
+        }
     }
 }

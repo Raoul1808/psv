@@ -34,7 +34,7 @@ impl SortView {
             show_load: true,
             load: LoadingOptions::default(),
             show_playback: false,
-            playback: PlaybackControls,
+            playback: PlaybackControls::default(),
             sim: Default::default(),
             playing_sim: false,
             last_instant: Instant::now(),

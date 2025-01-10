@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Display};
 
 use parser::parse_push_swap;
 
@@ -6,7 +6,7 @@ mod parser;
 
 pub type Stack = VecDeque<u32>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PushSwapInstruction {
     SwapA,
     SwapB,
@@ -95,6 +95,26 @@ impl PushSwapInstruction {
             ReverseRotateB => RotateB.execute(stack_a, stack_b),
             ReverseRotateBoth => RotateBoth.execute(stack_a, stack_b),
         }
+    }
+}
+
+impl Display for PushSwapInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use PushSwapInstruction::*;
+        let str = match self {
+            SwapA => "sa",
+            SwapB => "sb",
+            SwapBoth => "ss",
+            PushA => "pa",
+            PushB => "pb",
+            RotateA => "ra",
+            RotateB => "rb",
+            RotateBoth => "rr",
+            ReverseRotateA => "rra",
+            ReverseRotateB => "rrb",
+            ReverseRotateBoth => "rrr",
+        };
+        write!(f, "{}", str)
     }
 }
 
