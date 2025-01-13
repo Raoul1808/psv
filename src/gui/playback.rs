@@ -71,36 +71,42 @@ impl PlaybackControls {
                     let end_cond = program_counter < instructions.len();
                     let undo_cond = !*play_sim && start_cond;
                     let step_cond = !*play_sim && end_cond;
-                    if ui.add_enabled(start_cond, Button::new("<<")).clicked() {
-                        while sim.undo() {}
-                        *regenerate_render_data = true;
-                    }
-                    if ui
-                        .add_enabled(undo_cond, Button::new("<"))
-                        .on_hover_text("You can press the right arrow key to step backwards.")
-                        .clicked()
-                    {
-                        *regenerate_render_data = sim.undo();
-                    }
-                    let button_text = if *play_sim { "Pause" } else { "Play" };
-                    if ui
-                        .button(button_text)
-                        .on_hover_text("You can press spacebar to play/pause the simulation.")
-                        .clicked()
-                    {
-                        *play_sim = !*play_sim;
-                    }
-                    if ui
-                        .add_enabled(step_cond, Button::new(">"))
-                        .on_hover_text("You can press the left arrow key to step forward.")
-                        .clicked()
-                    {
-                        *regenerate_render_data = sim.step();
-                    }
-                    if ui.add_enabled(end_cond, Button::new(">>")).clicked() {
-                        while sim.step() {}
-                        *regenerate_render_data = true;
-                    }
+                    ui.scope(|ui| {
+                        ui.style_mut().text_styles.insert(
+                            egui::TextStyle::Button,
+                            egui::FontId::new(24., egui::epaint::FontFamily::Proportional),
+                        );
+                        if ui.add_enabled(start_cond, Button::new("⏮")).clicked() {
+                            while sim.undo() {}
+                            *regenerate_render_data = true;
+                        }
+                        if ui
+                            .add_enabled(undo_cond, Button::new("⏴"))
+                            .on_hover_text("You can press the right arrow key to step backwards.")
+                            .clicked()
+                        {
+                            *regenerate_render_data = sim.undo();
+                        }
+                        let button_text = if *play_sim { "⏸" } else { "▶" };
+                        if ui
+                            .button(button_text)
+                            .on_hover_text("You can press spacebar to play/pause the simulation.")
+                            .clicked()
+                        {
+                            *play_sim = !*play_sim;
+                        }
+                        if ui
+                            .add_enabled(step_cond, Button::new("⏵"))
+                            .on_hover_text("You can press the left arrow key to step forward.")
+                            .clicked()
+                        {
+                            *regenerate_render_data = sim.step();
+                        }
+                        if ui.add_enabled(end_cond, Button::new("⏭")).clicked() {
+                            while sim.step() {}
+                            *regenerate_render_data = true;
+                        }
+                    });
                 });
                 ui.scope(|ui| {
                     ui.spacing_mut().slider_width = ui.available_width();
