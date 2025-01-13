@@ -45,6 +45,8 @@ The Playback Controls window will appear on-screen. You will be able to:
 - Change the playback speed if you like seeing numbers being sorted but lack the patience for it
 - View a list of instructions
 
+You can also use the spacebar to play/pause the simulation and press the left/right arrow keys to step through.
+
 If you need to test another arrangement of numbers and/or another set of
 instructions, you can just load another simulation from the Loader Options window.
 
@@ -109,7 +111,7 @@ numbers.
 
 > [!WARNING]
 >
-> `wgpu` has a fairly high MSRV, so make sure your Rust toolchain is up-to-date!
+> `wgpu` has a fairly high MSRV requirement, so make sure your Rust toolchain is up-to-date!
 
 Pre-requisites:
 - An up-to-date Rust toolchain, preferrably installed using [rustup](https://rustup.rs)
