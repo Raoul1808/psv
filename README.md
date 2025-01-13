@@ -26,10 +26,10 @@ Loading Options window will be visible. To test your push\_swap program, first
 you need to specify how random numbers should be generated.
 
 - **Ordered**: psv will generate an ordered list of numbers from `0` to `n-1`.
-- **Random Normalized**: psv will generated an ordered list of numbers from `0` to `n-1`, then shuffle it.
+- **Random Normalized**: psv will generate an ordered list of numbers from `0` to `n-1`, then shuffle it.
 - **Random from Custom Range**: psv will randomly pick `n` numbers from the specified range.
 - **User Input**: you will be able to input numbers yourself (useful to debug a single test case).
-- **Preset**: a collection of pretty number arrangements with some that are known to break some push\_swap programs.
+- **Preset**: a collection of pretty number arrangements with some arrangements that are known to break some push\_swap programs.
 
 Once you have selected the number generation option, you will have to provide
 a source of push\_swap instructions. You have 2 options:
@@ -56,6 +56,12 @@ Visual Options window, where you can change
 - How the sorted numbers should be colored based on their range
 
 These options are purely cosmetic and do not impact in any way the sorting of numbers.
+
+> [!NOTE]
+>
+> The coloring of sorted numbers may not update in real time. **THIS IS NORMAL**,
+> as the vertex data is only regenerated when the simulation is running,
+> or was stepped or skipped through.
 
 ### Benchmarking
 
