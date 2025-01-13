@@ -1,6 +1,6 @@
 use core::panic;
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{stdin, stdout, Write},
     process::Command,
     str::FromStr,
@@ -29,11 +29,16 @@ pub fn benchmark() {
         prompt("Enter amount of sorting numbers to use").expect("invalid number given");
     let tests: usize = prompt("Enter amount of tests to execute").expect("invalid number given");
 
-    println!("Select path to push_swap executable");
-    let exec_path = rfd::FileDialog::new()
-        .set_title("Select push_swap executable path")
-        .pick_file()
-        .expect("no file selected");
+    let exec_path = if let Ok(path) = fs::canonicalize("push_swap") {
+        println!("Found push_swap executable in current directory");
+        path
+    } else {
+        println!("Select path to push_swap executable");
+        rfd::FileDialog::new()
+            .set_title("Select push_swap executable path")
+            .pick_file()
+            .expect("no file selected")
+    };
 
     let results = Arc::new(Mutex::new(vec![0; tests]));
     let error_log = File::create("error.log").expect("cannor create error.log file");
