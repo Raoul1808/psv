@@ -102,11 +102,20 @@ impl PlaybackControls {
                         *regenerate_render_data = true;
                     }
                 });
-                ui.horizontal(|ui| {
-                    let mut millis = exec_duration.as_millis() as u64;
-                    Slider::new(&mut millis, 1..=50).show_value(false).ui(ui).on_hover_text("Drag this slider to change the execution rate (in milliseconds between 2 instructions)");
-                    *exec_duration = Duration::from_millis(millis);
-                    ui.label(format!("{}ms exec rate", millis));
+                ui.scope(|ui| {
+                    ui.spacing_mut().slider_width = ui.available_width();
+                    let mut exec_rate = (1. / exec_duration.as_secs_f64()).round() as u32;
+                    Slider::new(&mut exec_rate, 1..=1000)
+                        .show_value(false)
+                        .step_by(1.)
+                        .ui(ui);
+                    *exec_duration = Duration::from_secs_f64(1. / exec_rate as f64);
+                    ui.horizontal(|ui| {
+                        if ui.button("Reset Speed").clicked() {
+                            *exec_duration = Duration::from_secs_f64(1. / 60.);
+                        }
+                        ui.label(format!("{} instructions per second", exec_rate));
+                    });
                 });
                 ui.separator();
                 ui.collapsing("push_swap instruction flow", |ui| {

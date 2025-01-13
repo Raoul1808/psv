@@ -38,7 +38,7 @@ impl SortView {
             sim: Default::default(),
             playing_sim: false,
             last_instant: Instant::now(),
-            exec_interval: Duration::from_millis(16),
+            exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::ZERO,
         }
     }
