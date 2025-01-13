@@ -61,11 +61,7 @@ pub fn benchmark() {
                 extern_program_counter += 1;
             }
             sim.make_contiguous();
-            if !sim.stack_a().is_sorted() || sim.stack_a().len() != numbers.len() {
-                eprintln!(
-                    "Test {}: Stack A is not sorted! Error details logged in error.log",
-                    test_num
-                );
+            if !sim.stack_a().is_sorted() || !sim.stack_b().is_empty() {
                 let mut error_log = error_log.lock().expect("gimme");
                 let _ = writeln!(error_log, "Test {} failed.", test_num);
                 let _ = writeln!(error_log, "Numbers: {:?}", numbers);
@@ -78,7 +74,10 @@ pub fn benchmark() {
                 );
                 let _ = writeln!(error_log, "====================================");
                 drop(error_log);
-                panic!("shit happened!!!");
+                panic!(
+                    "Test {}: Stack A is not sorted! Error details logged in error.log",
+                    test_num
+                );
             }
             let mut results = results.lock().expect("panic chain!");
             results[test_num] = extern_program_counter;
