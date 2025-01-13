@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use egui::{
-    lerp, pos2, vec2, Button, ComboBox, Context, Mesh, Rect, Rgba, Sense, Shape, Ui, Widget, Window,
+    lerp, pos2, vec2, Button, ComboBox, Context, Mesh, Rect, Rgba, Sense, Shape, Slider, Ui,
+    Widget, Window,
 };
 
 use crate::gradient::Gradient;
@@ -155,13 +156,23 @@ impl VisualOptions {
         }
     }
 
-    pub fn ui(&mut self, ctx: &Context, open: &mut bool) {
+    pub fn ui(&mut self, ctx: &Context, open: &mut bool, scale_factor: &mut f32) {
         Window::new("Visual Options").open(open).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Floating window opacity");
-                egui::Slider::new(&mut self.opacity, 128..=255)
+                Slider::new(&mut self.opacity, 128..=255)
                     .show_value(false)
                     .ui(ui);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Scale factor");
+                if ui.button("-").clicked() {
+                    *scale_factor = (*scale_factor - 0.1).max(0.3);
+                }
+                ui.label(format!("{:.1}", *scale_factor));
+                if ui.button("+").clicked() {
+                    *scale_factor = (*scale_factor + 0.1).min(3.0);
+                }
             });
             ui.horizontal(|ui| {
                 ui.color_edit_button_rgb(&mut self.clear_color);

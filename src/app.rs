@@ -39,7 +39,7 @@ impl App<'_> {
 
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [surface_width, surface_height],
-            pixels_per_point: window.scale_factor() as f32,
+            pixels_per_point: window.scale_factor() as f32 * sort_view.scale_factor(),
         };
 
         if let Some(data) = sort_view.get_tris_data() {

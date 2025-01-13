@@ -22,6 +22,7 @@ pub struct SortView {
     last_instant: Instant,
     exec_interval: Duration,
     duration_accumulated: Duration,
+    scale_factor: f32,
 }
 
 impl SortView {
@@ -40,7 +41,12 @@ impl SortView {
             last_instant: Instant::now(),
             exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::ZERO,
+            scale_factor: 1.0,
         }
+    }
+
+    pub fn scale_factor(&self) -> f32 {
+        self.scale_factor
     }
 
     pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
@@ -141,7 +147,8 @@ impl SortView {
                 ui.checkbox(&mut self.show_playback, "Show Playback Controls").on_hover_text("Shows a floating window with playback controls and a table of running instructions.");
                 ui.small(format!("Running psv v{}", env!("CARGO_PKG_VERSION")));
             });
-        self.visual.ui(ui, &mut self.show_visual);
+        self.visual
+            .ui(ui, &mut self.show_visual, &mut self.scale_factor);
         self.load.ui(
             ui,
             &mut self.show_load,
