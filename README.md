@@ -15,7 +15,7 @@ This program helps visualise the output of the push\_swap program.
 
 ### The GUI
 
-First, either [download (LINUX ONLY)](/releases/latest/download/psv) or
+First, either [download (LINUX ONLY)](/releases/latest) or
 [build](#building) the program.
 
 Mark the program as executable (`chmod +x psv`), then run it (in a terminal or
