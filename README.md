@@ -37,6 +37,10 @@ a source of push\_swap instructions. You have 2 options:
 - **User Input**: you will be able to input push\_swap instructions yourself.
 - **Program Output**: give it the path to your push\_swap executable. psv will generate the random numbers and execute your program with the list of numbers as arguments.
 
+> [!TIP]
+>
+> The push\_swap executable will be set automatically if psv finds it in the current directory.
+
 Then, click the **Visualize** button to load the numbers and instructions.
 The Playback Controls window will appear on-screen. You will be able to:
 
@@ -54,6 +58,7 @@ You can also change the look of the simulation if you'd like. Bring up the
 Visual Options window, where you can change
 
 - The floating windows' backing transparency
+- The GUI windows' scaling factor
 - The program's background color (clear color)
 - How the sorted numbers should be colored based on their range
 
@@ -77,6 +82,10 @@ To enter benchmarking mode, open a terminal window and run psv with the argument
 You will then be asked to provide how many numbers should be sorted, how many
 tests should be run, and finally the path to your push\_swap executable.
 Running more tests gives more accurate results, but it also takes more time.
+
+> [!TIP]
+>
+> Just like when using the GUI, the push\_swap executable will be set automatically if psv finds it in the current directory.
 
 Tests are run in parallel, the number of tests left to run will appear on screen
 while waiting.
