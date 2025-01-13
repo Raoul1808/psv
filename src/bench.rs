@@ -1,5 +1,6 @@
 use core::panic;
 use std::{
+    fs::File,
     io::{stdin, stdout, Write},
     process::Command,
     str::FromStr,
@@ -35,10 +36,13 @@ pub fn benchmark() {
         .expect("no file selected");
 
     let results = Arc::new(Mutex::new(vec![0; tests]));
+    let error_log = File::create("error.log").expect("cannor create error.log file");
+    let error_log = Arc::new(Mutex::new(error_log));
     let pool = ThreadPool::new(4);
     for test_num in 0..tests {
         let results = results.clone();
         let exec_path = exec_path.clone();
+        let error_log = error_log.clone();
         pool.execute(move || {
             let mut sim = PushSwapSim::default();
             let mut numbers: Vec<_> = (0..numbers).collect();
@@ -56,10 +60,24 @@ pub fn benchmark() {
             while sim.step() {
                 extern_program_counter += 1;
             }
-            if !sim.stack_a().is_sorted() {
-                eprintln!("Stack A is not sorted!");
-                eprintln!("Starting numbers: {:?}", numbers);
-                eprintln!("Instructions received: {:?}", instructions);
+            sim.make_contiguous();
+            if !sim.stack_a().is_sorted() || sim.stack_a().len() != numbers.len() {
+                eprintln!(
+                    "Test {}: Stack A is not sorted! Error details logged in error.log",
+                    test_num
+                );
+                let mut error_log = error_log.lock().expect("gimme");
+                let _ = writeln!(error_log, "Test {} failed.", test_num);
+                let _ = writeln!(error_log, "Numbers: {:?}", numbers);
+                let _ = writeln!(error_log, "Instructions: {}", instructions);
+                let _ = writeln!(
+                    error_log,
+                    "Final stack state: {:?} {:?}",
+                    sim.stack_a(),
+                    sim.stack_b()
+                );
+                let _ = writeln!(error_log, "====================================");
+                drop(error_log);
                 panic!("shit happened!!!");
             }
             let mut results = results.lock().expect("panic chain!");
@@ -81,7 +99,10 @@ pub fn benchmark() {
     pool.join();
     let panics = pool.panic_count();
     if panics > 0 {
-        println!("{} thread(s) panicked!", panics);
+        println!(
+            "{} thread(s) panicked! Check the error log to see which tests resulted in errors",
+            panics
+        );
     } else {
         println!("Testing done with no errors!");
     }
