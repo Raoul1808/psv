@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     fmt::{Display, Write},
+    fs,
     num::ParseIntError,
     ops::RangeInclusive,
     path::PathBuf,
@@ -63,9 +64,14 @@ pub struct LoadingOptions {
 
 impl Default for LoadingOptions {
     fn default() -> Self {
+        let push_swap = if let Ok(path) = fs::canonicalize("push_swap") {
+            Some(path)
+        } else {
+            None
+        };
         Self {
             gen_opt: NumberGeneration::Random(10),
-            source_opt: InstructionsSource::Executable(None),
+            source_opt: InstructionsSource::Executable(push_swap),
             number_args: String::new(),
         }
     }
