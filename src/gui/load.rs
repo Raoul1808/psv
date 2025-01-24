@@ -43,6 +43,7 @@ impl Display for NumberGeneration {
 #[derive(PartialEq)]
 enum InstructionsSource {
     Manual(String),
+    File(Option<PathBuf>),
     Executable(Option<PathBuf>),
 }
 
@@ -50,6 +51,7 @@ impl Display for InstructionsSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match *self {
             InstructionsSource::Manual(_) => "User Input",
+            InstructionsSource::File(_) => "From File",
             InstructionsSource::Executable(_) => "Program Output",
         };
         write!(f, "{}", str)
@@ -117,6 +119,15 @@ impl LoadingOptions {
                     .stdout;
                 let instructions = String::from_utf8(output)
                     .map_err(|err| format!("failed to convert byte array to string: {}", err))?;
+                (instructions, numbers)
+            }
+            InstructionsSource::File(path) => {
+                let path = path.as_ref().ok_or("No file selected".to_string())?;
+                let numbers = self
+                    .get_numbers()
+                    .map_err(|err| format!("error while parsing numbers: {}", err))?;
+                let instructions = fs::read_to_string(path)
+                    .map_err(|err| format!("failed to read from file: {}", err))?;
                 (instructions, numbers)
             }
             InstructionsSource::Manual(instructions) => (
@@ -245,18 +256,37 @@ impl LoadingOptions {
                 .selected_text(self.source_opt.to_string())
                 .show_ui(ui, |ui| {
                     use InstructionsSource::*;
-                    let (ins, path) = match &self.source_opt {
-                        Manual(i) => (i.clone(), None),
-                        Executable(p) => (String::new(), p.clone()),
+                    let (ins, file_path, exe_path) = match &self.source_opt {
+                        Manual(i) => (i.clone(), None, None),
+                        File(p) => (String::new(), p.clone(), None),
+                        Executable(p) => (String::new(), None, p.clone()),
                     };
                     ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input").on_hover_text("You will be able to input a list of push_swap instructions yourself.");
-                    ui.selectable_value(&mut self.source_opt, Executable(path), "Program Output").on_hover_text("The selected program will be executed with the generated numbers above fed as input to the program. The output of the program will be interpreted as a list of push_swap instructions.");
+                    ui.selectable_value(&mut self.source_opt, File(file_path), "From File").on_hover_text("The selected file's contents will be interpreted as a list of push_swap instructions.");
+                    ui.selectable_value(&mut self.source_opt, Executable(exe_path), "Program Output").on_hover_text("The selected program will be executed with the generated numbers above fed as input to the program. The output of the program will be interpreted as a list of push_swap instructions.");
                 });
             match &mut self.source_opt {
                 InstructionsSource::Manual(i) => {
                     ui.label("Type push_swap instructions below");
                     ScrollArea::vertical().show(ui, |ui| {
                         ui.add_sized([300., 5.], egui::TextEdit::multiline(i));
+                    });
+                }
+                InstructionsSource::File(p) => {
+                    ui.horizontal(|ui| {
+                        if ui.button("Browse").clicked() {
+                            let path = rfd::FileDialog::new()
+                                .set_title("Select file")
+                                .pick_file();
+                            if let Some(path) = path {
+                                *p = Some(path);
+                            }
+                        }
+                        let path = p
+                            .clone()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or("None".into());
+                        ui.label(format!("Selected File: {}", path));
                     });
                 }
                 InstructionsSource::Executable(p) => {
