@@ -49,7 +49,14 @@ impl PlaybackControls {
                         let time_elapsed = total_duration.mul_f32(t);
                         let time_left = total_duration - time_elapsed;
                         let secs = time_left.as_secs();
-                        if secs >= 60 {
+                        if secs >= 3600 {
+                            format!(
+                                "Estimated Time Remaining: {}h{}m{}s",
+                                secs / 3600,
+                                (secs / 60) % 60,
+                                secs % 60
+                            )
+                        } else if secs >= 60 {
                             format!("Estimated Time Remaining: {}m{}s", secs / 60, secs % 60)
                         } else {
                             format!("Estimated Time Remaining: {}s", secs)
