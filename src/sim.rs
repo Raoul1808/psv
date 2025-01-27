@@ -1,9 +1,5 @@
 use std::{collections::VecDeque, fmt::Display};
 
-use parser::parse_push_swap;
-
-mod parser;
-
 pub type Stack = VecDeque<u32>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,6 +132,33 @@ fn normalized_vec(numbers: &[i64]) -> Vec<u32> {
         .collect();
     numbers.sort_by(|(_, i1), (_, i2)| i1.cmp(i2));
     numbers.into_iter().map(|(i, _)| i as u32).collect()
+}
+
+pub fn parse_push_swap(text: &str) -> Result<Vec<PushSwapInstruction>, usize> {
+    let raw = text.split_whitespace().enumerate();
+    let mut instructions = vec![];
+    for (i, ins) in raw {
+        let i = i + 1;
+        let ins = {
+            use PushSwapInstruction::*;
+            match ins {
+                "sa" => SwapA,
+                "sb" => SwapB,
+                "ss" => SwapBoth,
+                "pa" => PushA,
+                "pb" => PushB,
+                "ra" => RotateA,
+                "rb" => RotateB,
+                "rr" => RotateBoth,
+                "rra" => ReverseRotateA,
+                "rrb" => ReverseRotateB,
+                "rrr" => ReverseRotateBoth,
+                _ => return Err(i),
+            }
+        };
+        instructions.push(ins);
+    }
+    Ok(instructions)
 }
 
 impl PushSwapSim {
