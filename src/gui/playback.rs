@@ -76,10 +76,10 @@ impl PlaybackControls {
                     *temp_stop_sim = slider.is_pointer_button_down_on();
                 });
                 ui.horizontal(|ui| {
-                    let instructions = sim.instructions();
+                    let instructions_len = sim.instructions().len();
                     let start_cond = program_counter > 0;
-                    let end_cond = program_counter < instructions.len();
-                    let reached_end = program_counter == instructions.len();
+                    let end_cond = program_counter < instructions_len;
+                    let reached_end = program_counter == instructions_len;
                     let undo_cond = !*play_sim && start_cond;
                     let step_cond = !*play_sim && end_cond;
                     if reached_end {
@@ -91,8 +91,7 @@ impl PlaybackControls {
                             egui::FontId::new(24., egui::epaint::FontFamily::Proportional),
                         );
                         if ui.add_enabled(start_cond, Button::new("⏮")).clicked() {
-                            while sim.undo() {}
-                            *regenerate_render_data = true;
+                            *regenerate_render_data = sim.skip_to(0);
                         }
                         if ui
                             .add_enabled(undo_cond, Button::new("⏴"))
@@ -117,8 +116,7 @@ impl PlaybackControls {
                             *regenerate_render_data = sim.step();
                         }
                         if ui.add_enabled(end_cond, Button::new("⏭")).clicked() {
-                            while sim.step() {}
-                            *regenerate_render_data = true;
+                            *regenerate_render_data = sim.skip_to(instructions_len);
                         }
                     });
                 });
