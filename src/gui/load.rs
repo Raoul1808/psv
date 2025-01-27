@@ -139,7 +139,7 @@ impl LoadingOptions {
         Ok((instructions, numbers))
     }
 
-    fn load_sim(&mut self, sim: &mut PushSwapSim, projection: &mut cgmath::Matrix4<f32>) {
+    fn load_sim(&mut self, sim: &mut PushSwapSim, projection: &mut cgmath::Matrix4<f32>) -> bool {
         let (instructions, numbers) = match self.get_instructions_and_numbers() {
             Ok(pair) => pair,
             Err(s) => {
@@ -149,7 +149,7 @@ impl LoadingOptions {
                     .set_description(format!("An error occurred:\n{}", s))
                     .set_buttons(rfd::MessageButtons::Ok)
                     .show();
-                return;
+                return false;
             }
         };
         self.number_args =
@@ -160,8 +160,9 @@ impl LoadingOptions {
                     let _ = write!(acc, "{} ", n);
                     acc
                 });
+        update_projection(projection, numbers.len() as f32);
         match sim.load_random(&numbers, &instructions) {
-            Ok(_) => {}
+            Ok(_) => true,
             Err(line) => {
                 rfd::MessageDialog::new()
                     .set_level(rfd::MessageLevel::Error)
@@ -172,9 +173,9 @@ impl LoadingOptions {
                     ))
                     .set_buttons(rfd::MessageButtons::Ok)
                     .show();
+                false
             }
-        };
-        update_projection(projection, numbers.len() as f32);
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -310,10 +311,9 @@ impl LoadingOptions {
             ui.separator();
             ui.horizontal(|ui| {
                 if ui.button("Visualize").clicked() {
-                    self.load_sim(sim, projection);
+                    *show_playback = self.load_sim(sim, projection);
                     *regenerate_render_data = true;
                     *playing_sim = false;
-                    *show_playback = true;
                 }
                 if ui.button("Clear").clicked() {
                     sim.clear();
