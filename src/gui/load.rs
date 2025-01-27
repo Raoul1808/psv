@@ -21,6 +21,7 @@ const RANGE_MAX: i64 = i16::MAX as i64;
 #[derive(PartialEq)]
 enum NumberGeneration {
     Ordered(usize),
+    ReverseOrdered(usize),
     Random(usize),
     RandomRanged(RangeInclusive<i64>, usize),
     Arbitrary(String),
@@ -34,6 +35,7 @@ impl Display for NumberGeneration {
             NumberGeneration::Random(_) => "Random Normalized",
             NumberGeneration::RandomRanged(..) => "Random from Custom Range",
             NumberGeneration::Ordered(_) => "Ordered",
+            NumberGeneration::ReverseOrdered(_) => "Reverse Ordered",
             NumberGeneration::Preset(_) => "Preset",
         };
         write!(f, "{}", str)
@@ -87,6 +89,7 @@ impl LoadingOptions {
     fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
         match &self.gen_opt {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
+            NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
             NumberGeneration::Random(r) => {
                 let mut nums: Vec<_> = (0..(*r as i64)).collect();
                 nums.shuffle(&mut thread_rng());
@@ -164,6 +167,10 @@ impl LoadingOptions {
         match sim.load_random(&numbers, &instructions) {
             Ok(_) => true,
             Err(line) => {
+                eprintln!("Error while loading instructions!");
+                eprintln!("Failed at instruction {}", line);
+                eprintln!("Numbers: [{}]", self.number_args);
+                eprintln!("List of instructions: {}", instructions);
                 rfd::MessageDialog::new()
                     .set_level(rfd::MessageLevel::Error)
                     .set_title("Instruction parsing error")
@@ -195,12 +202,13 @@ impl LoadingOptions {
                 .show_ui(ui, |ui| {
                     use NumberGeneration::*;
                     let (range, num_gen, str, i) = match &self.gen_opt {
-                        Ordered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new(), 0),
+                        Ordered(r) | ReverseOrdered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new(), 0),
                         RandomRanged(r, n) => (r.clone(), *n, String::new(), 0),
                         Arbitrary(s) => (0..=9, 10, s.clone(), 0),
                         Preset(i) => (0..=9, 10, String::new(), *i),
                     };
                     ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered").on_hover_text("Numbers will be generated in order from 0 to n.");
+                    ui.selectable_value(&mut self.gen_opt, ReverseOrdered(num_gen), "Ordered").on_hover_text("Numbers will be generated in reverse order from n to 0.");
                     ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized").on_hover_text("Numbers will be generated from 0 to n, then they will be shuffled.");
                     ui.selectable_value(
                         &mut self.gen_opt,
@@ -211,7 +219,7 @@ impl LoadingOptions {
                     ui.selectable_value(&mut self.gen_opt, Preset(i), "Preset").on_hover_text("Numbers will be selected from a few hardcoded presets. This option was added just for fun, but some of the tests in here are known to break some programs.");
                 });
             match &mut self.gen_opt {
-                NumberGeneration::Ordered(r) | NumberGeneration::Random(r) => {
+                NumberGeneration::Ordered(r) | NumberGeneration::ReverseOrdered(r) | NumberGeneration::Random(r) => {
                     ui.horizontal(|ui| {
                         DragValue::new(r).ui(ui);
                         ui.label("Numbers to Generate");
