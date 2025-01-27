@@ -158,15 +158,17 @@ impl SortView {
             &mut self.playing_sim,
             &mut self.show_playback,
         );
+        let mut temp_stop = false;
         self.playback.ui(
             ui,
             &mut self.show_playback,
             &mut self.sim,
             &mut self.playing_sim,
+            &mut temp_stop,
             &mut self.exec_interval,
             &mut self.regenerate_render_data,
         );
-        if self.playing_sim {
+        if self.playing_sim && !temp_stop {
             let current_instant = Instant::now();
             let catching_duration = current_instant.duration_since(self.last_instant);
             while self.duration_accumulated <= catching_duration {

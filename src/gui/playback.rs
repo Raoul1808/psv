@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, time::Duration};
 
-use egui::{Align, Button, Layout, Sense, Slider, Ui, Widget, Window};
+use egui::{Align, Button, DragValue, Layout, Sense, Ui, Widget, Window};
 
 use crate::sim::PushSwapSim;
 
@@ -17,12 +17,14 @@ impl Default for PlaybackControls {
 }
 
 impl PlaybackControls {
+    #[allow(clippy::too_many_arguments)]
     pub fn ui(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
         sim: &mut PushSwapSim,
         play_sim: &mut bool,
+        temp_stop_sim: &mut bool,
         exec_duration: &mut Duration,
         regenerate_render_data: &mut bool,
     ) {
@@ -64,13 +66,18 @@ impl PlaybackControls {
                         sim.skip_to(counter);
                         *regenerate_render_data = true;
                     }
+                    *temp_stop_sim = slider.is_pointer_button_down_on();
                 });
                 ui.horizontal(|ui| {
                     let instructions = sim.instructions();
                     let start_cond = program_counter > 0;
                     let end_cond = program_counter < instructions.len();
+                    let reached_end = program_counter == instructions.len();
                     let undo_cond = !*play_sim && start_cond;
                     let step_cond = !*play_sim && end_cond;
+                    if reached_end {
+                        *play_sim = false;
+                    }
                     ui.scope(|ui| {
                         ui.style_mut().text_styles.insert(
                             egui::TextStyle::Button,
@@ -89,7 +96,7 @@ impl PlaybackControls {
                         }
                         let button_text = if *play_sim { "⏸" } else { "▶" };
                         if ui
-                            .button(button_text)
+                            .add_enabled(!reached_end, Button::new(button_text))
                             .on_hover_text("You can press spacebar to play/pause the simulation.")
                             .clicked()
                         {
@@ -108,20 +115,15 @@ impl PlaybackControls {
                         }
                     });
                 });
-                ui.scope(|ui| {
-                    ui.spacing_mut().slider_width = ui.available_width();
+                ui.horizontal(|ui| {
                     let mut exec_rate = (1. / exec_duration.as_secs_f64()).round() as u32;
-                    Slider::new(&mut exec_rate, 1..=1000)
-                        .show_value(false)
-                        .step_by(1.)
+                    let speed = exec_rate.ilog10();
+                    DragValue::new(&mut exec_rate)
+                        .speed(speed)
+                        .range(1..=i16::MAX)
                         .ui(ui);
+                    ui.label("instructions per second");
                     *exec_duration = Duration::from_secs_f64(1. / exec_rate as f64);
-                    ui.horizontal(|ui| {
-                        if ui.button("Reset Speed").clicked() {
-                            *exec_duration = Duration::from_secs_f64(1. / 60.);
-                        }
-                        ui.label(format!("{} instructions per second", exec_rate));
-                    });
                 });
                 ui.separator();
                 ui.collapsing("push_swap instruction flow", |ui| {
