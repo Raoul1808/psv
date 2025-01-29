@@ -50,6 +50,9 @@ fn save_conf(config: &Config) -> anyhow::Result<()> {
 impl Config {
     pub fn load() -> Config {
         let mut conf = load_conf().unwrap_or_default();
+        if conf.push_swap_path.as_ref().is_some_and(|p| !p.exists()) {
+            conf.push_swap_path = None;
+        }
         if conf.push_swap_path.is_none() {
             conf.push_swap_path = util::detect_push_swap();
         }
