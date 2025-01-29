@@ -40,7 +40,7 @@ pub fn benchmark() {
             .expect("no file selected")
     };
 
-    let results = Arc::new(Mutex::new(vec![0; tests]));
+    let results = Arc::new(Mutex::new(vec![None; tests]));
     let error_log = File::create("error.log").expect("cannor create error.log file");
     let error_log = Arc::new(Mutex::new(error_log));
     let pool = ThreadPool::new(4);
@@ -85,7 +85,7 @@ pub fn benchmark() {
                 );
             }
             let mut results = results.lock().expect("panic chain!");
-            results[test_num] = extern_program_counter;
+            results[test_num] = Some(extern_program_counter);
         });
     }
     println!("Tests running.");
@@ -111,15 +111,20 @@ pub fn benchmark() {
         println!("Testing done with no errors!");
     }
     let results = results.lock().expect("panic chain!");
-    let min = results
-        .iter()
-        .min()
-        .expect("there SHOULD be a minimum value in here!");
-    let max = results
-        .iter()
-        .max()
-        .expect("there SHOULD be a maximum value in here!");
-    let avg = results.iter().sum::<u32>() / results.len() as u32;
-    println!("Min: {}, Average: {}, Max: {}", min, avg, max);
+    let results: Vec<_> = results.iter().filter_map(|r| *r).collect();
+    let min = results.iter().copied().min().unwrap_or(0);
+    let max = results.iter().copied().max().unwrap_or(0);
+    let avg = if results.is_empty() {
+        0
+    } else {
+        results.iter().sum::<usize>() / results.len()
+    };
+    println!(
+        "Tests Passed: {}, Min: {}, Average: {}, Max: {}",
+        results.len(),
+        min,
+        avg,
+        max
+    );
     println!("Note: these values may change and can be more or less accurate depending on how many tests you ran.");
 }
