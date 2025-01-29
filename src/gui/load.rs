@@ -208,7 +208,7 @@ impl LoadingOptions {
                         Preset(i) => (0..=9, 10, String::new(), *i),
                     };
                     ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered").on_hover_text("Numbers will be generated in order from 0 to n.");
-                    ui.selectable_value(&mut self.gen_opt, ReverseOrdered(num_gen), "Ordered").on_hover_text("Numbers will be generated in reverse order from n to 0.");
+                    ui.selectable_value(&mut self.gen_opt, ReverseOrdered(num_gen), "Reverse Ordered").on_hover_text("Numbers will be generated in reverse order from n to 0.");
                     ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized").on_hover_text("Numbers will be generated from 0 to n, then they will be shuffled.");
                     ui.selectable_value(
                         &mut self.gen_opt,
