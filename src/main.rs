@@ -9,6 +9,7 @@ use winit::{
 
 mod app;
 mod bench;
+mod config;
 mod egui_tools;
 mod gpu;
 mod gradient;

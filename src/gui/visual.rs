@@ -5,7 +5,7 @@ use egui::{
     Widget, Window,
 };
 
-use crate::gradient::Gradient;
+use crate::{config::Config, gradient::Gradient};
 
 #[derive(PartialEq)]
 enum SortColors {
@@ -156,7 +156,7 @@ impl VisualOptions {
         }
     }
 
-    pub fn ui(&mut self, ctx: &Context, open: &mut bool, scale_factor: &mut f32) {
+    pub fn ui(&mut self, ctx: &Context, config: &mut Config, open: &mut bool) {
         Window::new("Visual Options").open(open).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Floating window opacity");
@@ -167,11 +167,13 @@ impl VisualOptions {
             ui.horizontal(|ui| {
                 ui.label("Scale factor");
                 if ui.button("-").clicked() {
-                    *scale_factor = (*scale_factor - 0.1).max(0.3);
+                    config.scale_factor = (config.scale_factor - 0.1).max(0.3);
+                    config.save();
                 }
-                ui.label(format!("{:.1}", *scale_factor));
+                ui.label(format!("{:.1}", config.scale_factor));
                 if ui.button("+").clicked() {
-                    *scale_factor = (*scale_factor + 0.1).min(3.0);
+                    config.scale_factor = (config.scale_factor + 0.1).min(3.0);
+                    config.save();
                 }
             });
             ui.horizontal(|ui| {

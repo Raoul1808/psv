@@ -3,12 +3,14 @@ use std::time::{Duration, Instant};
 use cgmath::{Matrix4, SquareMatrix};
 
 use crate::{
+    config::Config,
     gui::{LoadingOptions, PlaybackControls, VisualOptions},
     sim::PushSwapSim,
     vertex::{Vertex, VertexIndexPair},
 };
 
 pub struct SortView {
+    config: Config,
     projection: Matrix4<f32>,
     regenerate_render_data: bool,
     show_visual: bool,
@@ -22,12 +24,13 @@ pub struct SortView {
     last_instant: Instant,
     exec_interval: Duration,
     duration_accumulated: Duration,
-    scale_factor: f32,
 }
 
 impl SortView {
     pub fn new() -> Self {
+        let config = Config::load();
         Self {
+            config,
             projection: Matrix4::identity(),
             regenerate_render_data: false,
             show_visual: false,
@@ -41,12 +44,11 @@ impl SortView {
             last_instant: Instant::now(),
             exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::ZERO,
-            scale_factor: 1.0,
         }
     }
 
     pub fn scale_factor(&self) -> f32 {
-        self.scale_factor
+        self.config.scale_factor
     }
 
     pub fn get_tris_data(&mut self) -> Option<VertexIndexPair> {
@@ -154,8 +156,7 @@ impl SortView {
                 ui.checkbox(&mut self.show_playback, "Show Playback Controls").on_hover_text("Shows a floating window with playback controls and a table of running instructions.");
                 ui.small(format!("Running psv v{}", env!("CARGO_PKG_VERSION")));
             });
-        self.visual
-            .ui(ui, &mut self.show_visual, &mut self.scale_factor);
+        self.visual.ui(ui, &mut self.config, &mut self.show_visual);
         self.load.ui(
             ui,
             &mut self.show_load,
