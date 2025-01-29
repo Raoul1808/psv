@@ -21,5 +21,6 @@ pub fn default_profile() -> ColorProfile {
     ColorProfile {
         name: "Default".into(),
         colors: default_gradient().into(),
+        clear_color: [0.1, 0.2, 0.3],
     }
 }

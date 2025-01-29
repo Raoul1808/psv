@@ -32,6 +32,7 @@ impl Display for SortColors {
 pub struct ColorProfile {
     pub name: String,
     pub colors: SortColors,
+    pub clear_color: [f32; 3],
 }
 
 impl ColorProfile {
@@ -42,7 +43,6 @@ impl ColorProfile {
 pub struct Config {
     pub scale_factor: f32,
     pub egui_opacity: u8,
-    pub clear_color: [f32; 3],
     pub push_swap_path: Option<PathBuf>,
     pub current_profile: usize,
     pub color_profiles: Vec<ColorProfile>,
@@ -53,7 +53,6 @@ impl Default for Config {
         Config {
             scale_factor: 1.0,
             egui_opacity: 240,
-            clear_color: [0.1, 0.2, 0.3],
             push_swap_path: None,
             color_profiles: vec![util::default_profile()],
             current_profile: 0,
