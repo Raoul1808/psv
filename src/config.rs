@@ -10,6 +10,7 @@ const CONFIG_FILENAME: &str = ".psvconf.json";
 pub struct Config {
     pub scale_factor: f32,
     pub egui_opacity: u8,
+    pub clear_color: [f32; 3],
     pub push_swap_path: Option<PathBuf>,
 }
 
@@ -18,6 +19,7 @@ impl Default for Config {
         Config {
             scale_factor: 1.0,
             egui_opacity: 240,
+            clear_color: [0.1, 0.2, 0.3],
             push_swap_path: None,
         }
     }

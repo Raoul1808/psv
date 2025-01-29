@@ -38,7 +38,7 @@ impl VisualOptions {
         ];
         let gradient = Gradient::from_slice(gradient);
         Self {
-            clear_color: [0.1, 0.2, 0.3],
+            clear_color: config.clear_color,
             sort_colors: SortColors::FromGradient(gradient),
             opacity: config.egui_opacity,
         }
@@ -181,6 +181,10 @@ impl VisualOptions {
             ui.horizontal(|ui| {
                 ui.color_edit_button_rgb(&mut self.clear_color);
                 ui.label("Background Color");
+                if ui.button("Save").clicked() {
+                    config.clear_color = self.clear_color();
+                    config.save();
+                }
             });
             ui.label("Color preview");
             self.preview_color(ui);
