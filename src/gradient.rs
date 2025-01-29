@@ -1,8 +1,9 @@
 // NOTE: File copied from small side-project
 
 use egui::Widget;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 /// A structure that represents a color gradient.
 pub struct Gradient {
     steps: Vec<(f32, [f32; 4])>,

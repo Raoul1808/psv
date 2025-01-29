@@ -1,27 +1,12 @@
-use std::fmt::Display;
-
 use egui::{
     lerp, pos2, vec2, Button, ComboBox, Context, Mesh, Rect, Rgba, Sense, Shape, Slider, Ui,
     Widget, Window,
 };
 
-use crate::{config::Config, gradient::Gradient};
-
-#[derive(PartialEq)]
-enum SortColors {
-    FromGradient(Gradient),
-    ColoredSubdisions(Vec<[f32; 3]>),
-}
-
-impl Display for SortColors {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match self {
-            Self::FromGradient(..) => "From Gradient",
-            Self::ColoredSubdisions(..) => "Colored Subdivisions",
-        };
-        write!(f, "{}", str)
-    }
-}
+use crate::{
+    config::{Config, SortColors},
+    util,
+};
 
 pub struct VisualOptions {
     clear_color: [f32; 3],
@@ -31,15 +16,9 @@ pub struct VisualOptions {
 
 impl VisualOptions {
     pub fn new(config: &Config) -> Self {
-        let gradient = &[
-            [1.0, 0.0, 0.0, 1.0],
-            [1.0, 1.0, 0.0, 1.0],
-            [0.0, 1.0, 0.0, 1.0],
-        ];
-        let gradient = Gradient::from_slice(gradient);
         Self {
             clear_color: config.clear_color,
-            sort_colors: SortColors::FromGradient(gradient),
+            sort_colors: config.sort_colors.clone(),
             opacity: config.egui_opacity,
         }
     }
@@ -50,15 +29,6 @@ impl VisualOptions {
 
     pub fn opacity(&self) -> u8 {
         self.opacity
-    }
-
-    fn default_gradient() -> Gradient {
-        let gradient = &[
-            [1.0, 0.0, 0.0, 1.0],
-            [1.0, 1.0, 0.0, 1.0],
-            [0.0, 1.0, 0.0, 1.0],
-        ];
-        Gradient::from_slice(gradient)
     }
 
     fn default_subdivisions() -> Vec<[f32; 3]> {
@@ -189,12 +159,25 @@ impl VisualOptions {
             ui.label("Color preview");
             self.preview_color(ui);
             ui.separator();
+            ui.horizontal(|ui| {
+                if ui.button("Reset").clicked() {
+                    self.sort_colors = util::default_gradient().into();
+                }
+                if ui.button("Load").clicked() {
+                    self.sort_colors = config.sort_colors.clone();
+                }
+                if ui.button("Save").clicked() {
+                    config.sort_colors = self.sort_colors.clone();
+                    config.save();
+                }
+            });
+            ui.separator();
             ComboBox::from_label("Color Setting")
                 .selected_text(self.sort_colors.to_string())
                 .show_ui(ui, |ui| {
                     let (gradient, subdivisions) = match &self.sort_colors {
                         SortColors::FromGradient(g) => (g.clone(), Self::default_subdivisions()),
-                        SortColors::ColoredSubdisions(s) => (Self::default_gradient(), s.clone()),
+                        SortColors::ColoredSubdisions(s) => (util::default_gradient(), s.clone()),
                     };
                     ui.selectable_value(
                         &mut self.sort_colors,

@@ -1,10 +1,32 @@
-use std::{fs::File, path::PathBuf};
+use std::{fmt::Display, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::util;
+use crate::{gradient::Gradient, util};
 
 const CONFIG_FILENAME: &str = ".psvconf.json";
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SortColors {
+    FromGradient(Gradient),
+    ColoredSubdisions(Vec<[f32; 3]>),
+}
+
+impl From<Gradient> for SortColors {
+    fn from(value: Gradient) -> Self {
+        SortColors::FromGradient(value)
+    }
+}
+
+impl Display for SortColors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            Self::FromGradient(..) => "From Gradient",
+            Self::ColoredSubdisions(..) => "Colored Subdivisions",
+        };
+        write!(f, "{}", str)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -12,6 +34,7 @@ pub struct Config {
     pub egui_opacity: u8,
     pub clear_color: [f32; 3],
     pub push_swap_path: Option<PathBuf>,
+    pub sort_colors: SortColors,
 }
 
 impl Default for Config {
@@ -21,6 +44,7 @@ impl Default for Config {
             egui_opacity: 240,
             clear_color: [0.1, 0.2, 0.3],
             push_swap_path: None,
+            sort_colors: SortColors::FromGradient(util::default_gradient()),
         }
     }
 }
