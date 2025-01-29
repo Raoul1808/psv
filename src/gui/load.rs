@@ -11,7 +11,7 @@ use std::{
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
-use crate::sim::PushSwapSim;
+use crate::{config::Config, sim::PushSwapSim};
 
 use super::NUMBER_PRESETS;
 
@@ -66,26 +66,19 @@ pub struct LoadingOptions {
     number_args: String,
 }
 
-impl Default for LoadingOptions {
-    fn default() -> Self {
-        let push_swap = if let Ok(path) = fs::canonicalize("push_swap") {
-            Some(path)
-        } else {
-            None
-        };
-        Self {
-            gen_opt: NumberGeneration::Random(10),
-            source_opt: InstructionsSource::Executable(push_swap),
-            number_args: String::new(),
-        }
-    }
-}
-
 fn update_projection(projection: &mut cgmath::Matrix4<f32>, num_range: f32) {
     *projection = cgmath::ortho(0., num_range * 2., num_range, 0., -1., 1.);
 }
 
 impl LoadingOptions {
+    pub fn new(config: &Config) -> LoadingOptions {
+        LoadingOptions {
+            gen_opt: NumberGeneration::Random(10),
+            source_opt: InstructionsSource::Executable(config.push_swap_path.clone()),
+            number_args: String::new(),
+        }
+    }
+
     fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
         match &self.gen_opt {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
@@ -189,6 +182,7 @@ impl LoadingOptions {
     pub fn ui(
         &mut self,
         ctx: &Context,
+        config: &mut Config,
         open: &mut bool,
         sim: &mut PushSwapSim,
         regenerate_render_data: &mut bool,
@@ -305,7 +299,9 @@ impl LoadingOptions {
                                 .set_title("Select push_swap executable")
                                 .pick_file();
                             if let Some(path) = path {
-                                *p = Some(path);
+                                *p = Some(path.clone());
+                                config.push_swap_path = Some(path);
+                                config.save();
                             }
                         }
                         let path = p

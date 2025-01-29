@@ -16,6 +16,7 @@ mod gradient;
 mod gui;
 mod sim;
 mod sortview;
+mod util;
 mod vertex;
 
 fn main() -> Result<(), EventLoopError> {

@@ -1,17 +1,23 @@
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::util;
 
 const CONFIG_FILENAME: &str = ".psvconf.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub scale_factor: f32,
+    pub push_swap_path: Option<PathBuf>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { scale_factor: 1.0 }
+        Config {
+            scale_factor: 1.0,
+            push_swap_path: None,
+        }
     }
 }
 
@@ -41,7 +47,11 @@ fn save_conf(config: &Config) -> anyhow::Result<()> {
 
 impl Config {
     pub fn load() -> Config {
-        load_conf().unwrap_or_default()
+        let mut conf = load_conf().unwrap_or_default();
+        if conf.push_swap_path.is_none() {
+            conf.push_swap_path = util::detect_push_swap();
+        }
+        conf
     }
 
     pub fn save(&self) {

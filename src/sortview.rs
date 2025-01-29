@@ -30,13 +30,12 @@ impl SortView {
     pub fn new() -> Self {
         let config = Config::load();
         Self {
-            config,
             projection: Matrix4::identity(),
             regenerate_render_data: false,
             show_visual: false,
             visual: VisualOptions::default(),
             show_load: true,
-            load: LoadingOptions::default(),
+            load: LoadingOptions::new(&config),
             show_playback: false,
             playback: PlaybackControls::default(),
             sim: Default::default(),
@@ -44,6 +43,7 @@ impl SortView {
             last_instant: Instant::now(),
             exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::ZERO,
+            config,
         }
     }
 
@@ -159,6 +159,7 @@ impl SortView {
         self.visual.ui(ui, &mut self.config, &mut self.show_visual);
         self.load.ui(
             ui,
+            &mut self.config,
             &mut self.show_load,
             &mut self.sim,
             &mut self.regenerate_render_data,
