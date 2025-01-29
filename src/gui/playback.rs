@@ -100,8 +100,14 @@ impl PlaybackControls {
                         {
                             *regenerate_render_data = sim.undo();
                         }
-                        if reached_end {
-                            if ui.button("↺").clicked() {
+                        if instructions_len == 0 {
+                            ui.add_enabled(false, Button::new("⏹"));
+                        } else if reached_end {
+                            if ui
+                                .button("↺")
+                                .on_hover_text("You can press spacebar to replay the simulation.")
+                                .clicked()
+                            {
                                 sim.skip_to(0);
                                 *play_sim = true;
                             }
