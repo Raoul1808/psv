@@ -122,8 +122,8 @@ impl PlaybackControls {
                 });
                 ui.horizontal(|ui| {
                     let mut exec_rate = (1. / exec_duration.as_secs_f64()).round() as u32;
-                    let speed_cap = 60.max(sim.instructions().len() / 4);
-                    let speed = 10_f64.powf(exec_rate.ilog10() as f64);
+                    let speed_cap = 60.max(sim.instructions().len() / 2);
+                    let speed = 10_f64.powf(0_f64.max(exec_rate.ilog10() as f64 - 2.));
                     DragValue::new(&mut exec_rate)
                         .speed(speed)
                         .range(1..=speed_cap)
