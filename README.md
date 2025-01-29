@@ -26,15 +26,17 @@ Loading Options window will be visible. To test your push\_swap program, first
 you need to specify how random numbers should be generated.
 
 - **Ordered**: psv will generate an ordered list of numbers from `0` to `n-1`.
+- **Reverse Ordered**: psv will generate a reverse-ordered list of numbers from `n-1` to `0`.
 - **Random Normalized**: psv will generate an ordered list of numbers from `0` to `n-1`, then shuffle it.
 - **Random from Custom Range**: psv will randomly pick `n` numbers from the specified range.
 - **User Input**: you will be able to input numbers yourself (useful to debug a single test case).
 - **Preset**: a collection of pretty number arrangements with some arrangements that are known to break some push\_swap programs.
 
 Once you have selected the number generation option, you will have to provide
-a source of push\_swap instructions. You have 2 options:
+a source of push\_swap instructions. You have multiple options:
 
 - **User Input**: you will be able to input push\_swap instructions yourself.
+- **File**: give it the path to any file. psv will read the file as a list of push\_swap instructions, separated by lines or spaces.
 - **Program Output**: give it the path to your push\_swap executable. psv will generate the random numbers and execute your program with the list of numbers as arguments.
 
 > [!TIP]
@@ -69,6 +71,9 @@ These options are purely cosmetic and do not impact in any way the sorting of nu
 > The coloring of sorted numbers may not update in real time. **THIS IS NORMAL**,
 > as the vertex data is only regenerated when the simulation is running,
 > or was stepped or skipped through.
+>
+> If you wish to see how numbers look with the set colors, please refer to the
+> color preview on the side when customising the look of numbers.
 
 ### Benchmarking
 
@@ -100,15 +105,20 @@ numbers.
 > tests a set of numbers does not end up sorted, the test will panic and all
 > variables used in the process will be logged to the log file.
 
+> [!NOTE]
+>
+> Instructions that do not sort numbers will not be taken into account when benchmarking.
+
 ## Features
 
 - A nice and organised GUI
 - Number sequence generation
-  - Random sequence
+  - Random sequence, normalized or from a custom range
   - User input
   - Ordered numbers (why would you need this)
+  - Reverse Order (a little more useful than the previous option)
 - Visualise based on program output or user input
-- Customisable playback speed (instructions going from 1ms to 100ms)
+- Customisable playback speed (speed going from 1 instruction per second to all instructions in 2 seconds)
 - Benchmarking (command-line only, run `./psv benchmark`, aliases: `bench`, `b`)
 - Clear color customisation
 - Sorting number color customisation
