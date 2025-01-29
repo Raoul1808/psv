@@ -9,6 +9,7 @@ const CONFIG_FILENAME: &str = ".psvconf.json";
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub scale_factor: f32,
+    pub egui_opacity: u8,
     pub push_swap_path: Option<PathBuf>,
 }
 
@@ -16,6 +17,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             scale_factor: 1.0,
+            egui_opacity: 240,
             push_swap_path: None,
         }
     }
@@ -51,6 +53,7 @@ impl Config {
         if conf.push_swap_path.is_none() {
             conf.push_swap_path = util::detect_push_swap();
         }
+        conf.egui_opacity = conf.egui_opacity.clamp(128, 255);
         conf
     }
 

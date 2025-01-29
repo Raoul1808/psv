@@ -29,8 +29,8 @@ pub struct VisualOptions {
     opacity: u8,
 }
 
-impl Default for VisualOptions {
-    fn default() -> Self {
+impl VisualOptions {
+    pub fn new(config: &Config) -> Self {
         let gradient = &[
             [1.0, 0.0, 0.0, 1.0],
             [1.0, 1.0, 0.0, 1.0],
@@ -40,12 +40,10 @@ impl Default for VisualOptions {
         Self {
             clear_color: [0.1, 0.2, 0.3],
             sort_colors: SortColors::FromGradient(gradient),
-            opacity: 240,
+            opacity: config.egui_opacity,
         }
     }
-}
 
-impl VisualOptions {
     pub fn clear_color(&self) -> [f32; 3] {
         self.clear_color
     }
@@ -160,9 +158,13 @@ impl VisualOptions {
         Window::new("Visual Options").open(open).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Floating window opacity");
-                Slider::new(&mut self.opacity, 128..=255)
+                let slider = Slider::new(&mut self.opacity, 128..=255)
                     .show_value(false)
                     .ui(ui);
+                if slider.drag_stopped() {
+                    config.egui_opacity = self.opacity();
+                    config.save();
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Scale factor");

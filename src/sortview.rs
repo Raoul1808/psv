@@ -33,7 +33,7 @@ impl SortView {
             projection: Matrix4::identity(),
             regenerate_render_data: false,
             show_visual: false,
-            visual: VisualOptions::default(),
+            visual: VisualOptions::new(&config),
             show_load: true,
             load: LoadingOptions::new(&config),
             show_playback: false,
