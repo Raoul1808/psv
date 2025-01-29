@@ -4,21 +4,26 @@ use egui::{
 };
 
 use crate::{
-    config::{Config, SortColors},
+    config::{ColorProfile, Config, SortColors},
     util,
 };
 
 pub struct VisualOptions {
     clear_color: [f32; 3],
-    sort_colors: SortColors,
+    color_profile: ColorProfile,
     opacity: u8,
 }
 
 impl VisualOptions {
     pub fn new(config: &Config) -> Self {
+        let color_profile = config
+            .color_profiles
+            .get(config.current_profile)
+            .cloned()
+            .unwrap_or(util::default_profile());
         Self {
             clear_color: config.clear_color,
-            sort_colors: config.sort_colors.clone(),
+            color_profile,
             opacity: config.egui_opacity,
         }
     }
@@ -41,7 +46,7 @@ impl VisualOptions {
     }
 
     pub fn color_at(&self, t: f32) -> [f32; 4] {
-        match &self.sort_colors {
+        match &self.color_profile.colors {
             SortColors::FromGradient(g) => g.color_at(t),
             SortColors::ColoredSubdisions(v) => {
                 let len = v.len();
@@ -62,7 +67,7 @@ impl VisualOptions {
         let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
         if ui.is_rect_visible(rect) {
             let mut mesh = Mesh::default();
-            match &self.sort_colors {
+            match &self.color_profile.colors {
                 SortColors::FromGradient(g) => {
                     let steps = g.steps_sorted();
                     let n = steps.len();
@@ -159,33 +164,51 @@ impl VisualOptions {
             ui.label("Color preview");
             self.preview_color(ui);
             ui.separator();
-            ui.horizontal(|ui| {
-                if ui.button("Reset").clicked() {
-                    self.sort_colors = util::default_gradient().into();
+            let can_switch_or_delete = config.color_profiles.len() > 1;
+            ui.add_enabled_ui(can_switch_or_delete, |ui| {
+                let profile = ComboBox::from_label("Color Profile")
+                    .show_index(ui, &mut config.current_profile, config.color_profiles.len(), |index| {
+                        &config.color_profiles[index].name
+                    });
+                if profile.changed() {
+                    config.save();
+                    self.color_profile = config.color_profiles[config.current_profile].clone();
                 }
-                if ui.button("Load").clicked() {
-                    self.sort_colors = config.sort_colors.clone();
+            });
+            ui.horizontal(|ui| {
+                if ui.button("New").clicked() {
+                    config.color_profiles.push(util::default_profile());
+                    config.current_profile = config.color_profiles.len() - 1;
+                    self.color_profile = config.color_profiles[config.current_profile].clone();
                 }
                 if ui.button("Save").clicked() {
-                    config.sort_colors = self.sort_colors.clone();
+                    config.color_profiles[config.current_profile] = self.color_profile.clone();
+                    config.save();
+                }
+                if ui.add_enabled(can_switch_or_delete, Button::new("Delete")).clicked() {
+                    config.color_profiles.remove(config.current_profile);
+                    config.current_profile = config.current_profile.clamp(0, config.color_profiles.len());
+                    self.color_profile = config.color_profiles[config.current_profile].clone();
                     config.save();
                 }
             });
             ui.separator();
+            ui.text_edit_singleline(&mut self.color_profile.name);
+            self.color_profile.name.truncate(ColorProfile::NAME_MAX_LEN);
             ComboBox::from_label("Color Setting")
-                .selected_text(self.sort_colors.to_string())
+                .selected_text(self.color_profile.colors.to_string())
                 .show_ui(ui, |ui| {
-                    let (gradient, subdivisions) = match &self.sort_colors {
+                    let (gradient, subdivisions) = match &self.color_profile.colors {
                         SortColors::FromGradient(g) => (g.clone(), Self::default_subdivisions()),
                         SortColors::ColoredSubdisions(s) => (util::default_gradient(), s.clone()),
                     };
                     ui.selectable_value(
-                        &mut self.sort_colors,
+                        &mut self.color_profile.colors,
                         SortColors::FromGradient(gradient),
                         "From Gradient",
                     ).on_hover_text("Sorted numbers' color will be determined by a color gradient.");
                     ui.selectable_value(
-                        &mut self.sort_colors,
+                        &mut self.color_profile.colors,
                         SortColors::ColoredSubdisions(subdivisions),
                         "Colored Subdivisions",
                     ).on_hover_ui(|ui| {
@@ -194,7 +217,7 @@ impl VisualOptions {
                         ui.label("Useful to visualize sorting algorithms that group together numbers in big range groups.");
                     });
                 });
-            match &mut self.sort_colors {
+            match &mut self.color_profile.colors {
                 SortColors::FromGradient(g) => g.ui(ui),
                 SortColors::ColoredSubdisions(s) => {
                     let mut del = None;
