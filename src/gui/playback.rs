@@ -100,13 +100,22 @@ impl PlaybackControls {
                         {
                             *regenerate_render_data = sim.undo();
                         }
-                        let button_text = if *play_sim { "⏸" } else { "▶" };
-                        if ui
-                            .add_enabled(!reached_end, Button::new(button_text))
-                            .on_hover_text("You can press spacebar to play/pause the simulation.")
-                            .clicked()
-                        {
-                            *play_sim = !*play_sim;
+                        if reached_end {
+                            if ui.button("↺").clicked() {
+                                sim.skip_to(0);
+                                *play_sim = true;
+                            }
+                        } else {
+                            let button_text = if *play_sim { "⏸" } else { "▶" };
+                            if ui
+                                .button(button_text)
+                                .on_hover_text(
+                                    "You can press spacebar to play/pause the simulation.",
+                                )
+                                .clicked()
+                            {
+                                *play_sim = !*play_sim;
+                            }
                         }
                         if ui
                             .add_enabled(step_cond, Button::new("⏵"))

@@ -78,7 +78,14 @@ impl SortView {
             return;
         }
         match event.physical_key {
-            Code(KeyCode::Space) => self.playing_sim = !self.playing_sim,
+            Code(KeyCode::Space) => {
+                self.playing_sim = if self.sim.program_counter() == self.sim.instructions().len() {
+                    self.sim.skip_to(0);
+                    true
+                } else {
+                    !self.playing_sim
+                };
+            }
             Code(KeyCode::ArrowLeft) => {
                 if !self.playing_sim {
                     self.regenerate_render_data = self.sim.undo();
