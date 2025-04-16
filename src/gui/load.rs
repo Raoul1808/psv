@@ -445,7 +445,7 @@ impl LoadingOptions {
                 }
                 if ui.button("Copy numbers to clipboard").on_hover_text("The list of generated numbers will be collapsed into a single line that can be pasted as program arguments. Useful if you want to debug a random sequence that was just generated.").clicked() {
                     let copy = self.number_args.clone();
-                    ui.output_mut(move |o| o.copied_text = copy);
+                    ui.ctx().copy_text(copy);
                 }
                 if ui.button("Benchmark").clicked() {
                     rfd::MessageDialog::new()
