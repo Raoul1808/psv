@@ -114,7 +114,7 @@ impl Display for PushSwapInstruction {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct PushSwapSim {
     instructions: Vec<PushSwapInstruction>,
     program_counter: usize,
@@ -186,6 +186,10 @@ impl PushSwapSim {
 
     pub fn stack_b(&self) -> &[u32] {
         self.stack_b.as_slices().0
+    }
+
+    pub fn amount(&self) -> usize {
+        self.stack_a.len() + self.stack_b.len()
     }
 
     pub fn program_counter(&self) -> usize {

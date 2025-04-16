@@ -19,7 +19,8 @@ mod sortview;
 mod util;
 mod vertex;
 
-fn main() -> Result<(), EventLoopError> {
+#[tokio::main]
+async fn main() -> Result<(), EventLoopError> {
     let args: Vec<_> = args().collect();
     if args.len() > 1 && ["b", "bench", "benchmark"].contains(&args[1].as_str()) {
         benchmark();

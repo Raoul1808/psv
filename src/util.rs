@@ -3,11 +3,7 @@ use std::{fs, path::PathBuf};
 use crate::{config::ColorProfile, gradient::Gradient};
 
 pub fn detect_push_swap() -> Option<PathBuf> {
-    if let Ok(path) = fs::canonicalize("push_swap") {
-        Some(path)
-    } else {
-        None
-    }
+    fs::canonicalize("push_swap").ok()
 }
 
 pub fn default_gradient() -> Gradient {

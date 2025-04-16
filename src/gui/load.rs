@@ -2,14 +2,20 @@ use std::{
     collections::HashSet,
     fmt::{Display, Write},
     fs,
+    io::Read,
     num::ParseIntError,
     ops::RangeInclusive,
+    os::fd::AsRawFd,
     path::PathBuf,
-    process::Command,
+    process::{Command, Stdio},
+    thread::sleep,
+    time::{Duration, Instant},
 };
 
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
 use rand::{seq::SliceRandom, thread_rng, Rng};
+use tokio::sync::oneshot::{channel, Receiver, Sender};
+use tokio_util::sync::CancellationToken;
 
 use crate::{config::Config, sim::PushSwapSim};
 
@@ -18,7 +24,7 @@ use super::NUMBER_PRESETS;
 const RANGE_MIN: i64 = i16::MIN as i64;
 const RANGE_MAX: i64 = i16::MAX as i64;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 enum NumberGeneration {
     Ordered(usize),
     ReverseOrdered(usize),
@@ -28,59 +34,9 @@ enum NumberGeneration {
     Preset(usize),
 }
 
-impl Display for NumberGeneration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match *self {
-            NumberGeneration::Arbitrary(_) => "User Input",
-            NumberGeneration::Random(_) => "Random Normalized",
-            NumberGeneration::RandomRanged(..) => "Random from Custom Range",
-            NumberGeneration::Ordered(_) => "Ordered",
-            NumberGeneration::ReverseOrdered(_) => "Reverse Ordered",
-            NumberGeneration::Preset(_) => "Preset",
-        };
-        write!(f, "{}", str)
-    }
-}
-
-#[derive(PartialEq)]
-enum InstructionsSource {
-    Manual(String),
-    File(Option<PathBuf>),
-    Executable(Option<PathBuf>),
-}
-
-impl Display for InstructionsSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match *self {
-            InstructionsSource::Manual(_) => "User Input",
-            InstructionsSource::File(_) => "From File",
-            InstructionsSource::Executable(_) => "Program Output",
-        };
-        write!(f, "{}", str)
-    }
-}
-
-pub struct LoadingOptions {
-    gen_opt: NumberGeneration,
-    source_opt: InstructionsSource,
-    number_args: String,
-}
-
-fn update_projection(projection: &mut cgmath::Matrix4<f32>, num_range: f32) {
-    *projection = cgmath::ortho(0., num_range * 2., num_range, 0., -1., 1.);
-}
-
-impl LoadingOptions {
-    pub fn new(config: &Config) -> LoadingOptions {
-        LoadingOptions {
-            gen_opt: NumberGeneration::Random(10),
-            source_opt: InstructionsSource::Executable(config.push_swap_path.clone()),
-            number_args: String::new(),
-        }
-    }
-
-    fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
-        match &self.gen_opt {
+impl NumberGeneration {
+    pub fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
+        match &self {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
             NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
             NumberGeneration::Random(r) => {
@@ -99,27 +55,134 @@ impl LoadingOptions {
             NumberGeneration::Preset(i) => Ok(NUMBER_PRESETS[*i].1.to_vec()),
         }
     }
+}
 
-    pub fn get_instructions_and_numbers(&self) -> Result<(String, Vec<i64>), String> {
-        let (instructions, numbers) = match &self.source_opt {
+impl Display for NumberGeneration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match *self {
+            NumberGeneration::Arbitrary(_) => "User Input",
+            NumberGeneration::Random(_) => "Random Normalized",
+            NumberGeneration::RandomRanged(..) => "Random from Custom Range",
+            NumberGeneration::Ordered(_) => "Ordered",
+            NumberGeneration::ReverseOrdered(_) => "Reverse Ordered",
+            NumberGeneration::Preset(_) => "Preset",
+        };
+        write!(f, "{}", str)
+    }
+}
+
+#[derive(PartialEq, Clone)]
+enum InstructionsSource {
+    Manual(String),
+    File(Option<PathBuf>),
+    Executable(Option<PathBuf>),
+}
+
+impl Display for InstructionsSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match *self {
+            InstructionsSource::Manual(_) => "User Input",
+            InstructionsSource::File(_) => "From File",
+            InstructionsSource::Executable(_) => "Program Output",
+        };
+        write!(f, "{}", str)
+    }
+}
+
+struct AsyncWorker {
+    receiver: Receiver<Option<PushSwapSim>>,
+    token: CancellationToken,
+    start_time: Instant,
+}
+
+enum ExecutionTimeInfo {
+    None,
+    Finished(Duration),
+    Killed(Duration),
+}
+
+pub struct LoadingOptions {
+    gen_opt: NumberGeneration,
+    source_opt: InstructionsSource,
+    worker: Option<AsyncWorker>,
+    gen_time: ExecutionTimeInfo,
+    number_args: String,
+}
+
+fn update_projection(projection: &mut cgmath::Matrix4<f32>, num_range: f32) {
+    *projection = cgmath::ortho(0., num_range * 2., num_range, 0., -1., 1.);
+}
+
+// Taken from https://stackoverflow.com/a/68174244
+pub fn change_blocking_fd(fd: std::os::unix::io::RawFd, blocking: bool) {
+    unsafe {
+        let flags = libc::fcntl(fd, libc::F_GETFL);
+        libc::fcntl(
+            fd,
+            libc::F_SETFL,
+            if blocking {
+                flags & !libc::O_NONBLOCK
+            } else {
+                flags | libc::O_NONBLOCK
+            },
+        );
+    }
+}
+
+impl LoadingOptions {
+    pub fn new(config: &Config) -> LoadingOptions {
+        LoadingOptions {
+            gen_opt: NumberGeneration::Random(10),
+            source_opt: InstructionsSource::Executable(config.push_swap_path.clone()),
+            worker: None,
+            gen_time: ExecutionTimeInfo::None,
+            number_args: String::new(),
+        }
+    }
+
+    async fn get_instructions_and_numbers(
+        token: CancellationToken,
+        gen_opt: NumberGeneration,
+        source_opt: InstructionsSource,
+    ) -> Result<(String, Vec<i64>), String> {
+        let (instructions, numbers) = match &source_opt {
             InstructionsSource::Executable(path) => {
                 let path = path.as_ref().ok_or("No executable selected".to_string())?;
-                let numbers = self
+                let numbers = gen_opt
                     .get_numbers()
                     .map_err(|err| format!("error while parsing numbers: {}", err))?;
                 let args: Vec<_> = numbers.iter().map(|n| n.to_string()).collect();
-                let output = Command::new(path)
+                let mut child = Command::new(path)
                     .args(args)
-                    .output()
-                    .map_err(|err| format!("error while running program: {}", err))?
-                    .stdout;
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .map_err(|err| format!("error while running program: {}", err))?;
+                let mut stdout = child.stdout.take().unwrap();
+                change_blocking_fd(stdout.as_raw_fd(), false);
+                let mut output = vec![];
+                loop {
+                    let wait = child.try_wait();
+                    println!("Attempted waiting child: {:?}", wait);
+                    if let Ok(Some(_)) = wait {
+                        change_blocking_fd(stdout.as_raw_fd(), true);
+                        let _ = stdout.read_to_end(&mut output);
+                        break;
+                    }
+                    if token.is_cancelled() {
+                        let _ = child.kill();
+                        break;
+                    }
+                    let _ = stdout.read_to_end(&mut output);
+                    sleep(Duration::from_millis(10));
+                }
                 let instructions = String::from_utf8(output)
                     .map_err(|err| format!("failed to convert byte array to string: {}", err))?;
                 (instructions, numbers)
             }
             InstructionsSource::File(path) => {
                 let path = path.as_ref().ok_or("No file selected".to_string())?;
-                let numbers = self
+                let numbers = gen_opt
                     .get_numbers()
                     .map_err(|err| format!("error while parsing numbers: {}", err))?;
                 let instructions = fs::read_to_string(path)
@@ -128,27 +191,38 @@ impl LoadingOptions {
             }
             InstructionsSource::Manual(instructions) => (
                 instructions.clone(),
-                self.get_numbers()
+                gen_opt
+                    .get_numbers()
                     .map_err(|err| format!("error while parsing numbers: {}", err))?,
             ),
         };
         Ok((instructions, numbers))
     }
 
-    fn load_sim(&mut self, sim: &mut PushSwapSim, projection: &mut cgmath::Matrix4<f32>) -> bool {
-        let (instructions, numbers) = match self.get_instructions_and_numbers() {
-            Ok(pair) => pair,
-            Err(s) => {
-                rfd::MessageDialog::new()
-                    .set_level(rfd::MessageLevel::Error)
-                    .set_title("Information Error")
-                    .set_description(format!("An error occurred:\n{}", s))
-                    .set_buttons(rfd::MessageButtons::Ok)
-                    .show();
-                return false;
-            }
-        };
-        self.number_args =
+    async fn load_sim(
+        sender: Sender<Option<PushSwapSim>>,
+        token: CancellationToken,
+        gen_opt: NumberGeneration,
+        source_opt: InstructionsSource,
+    ) {
+        let (instructions, numbers) =
+            match Self::get_instructions_and_numbers(token, gen_opt, source_opt).await {
+                Ok(pair) => pair,
+                Err(s) => {
+                    rfd::AsyncMessageDialog::new()
+                        .set_level(rfd::MessageLevel::Error)
+                        .set_title("Information Error")
+                        .set_description(format!("An error occurred:\n{}", s))
+                        .set_buttons(rfd::MessageButtons::Ok)
+                        .show()
+                        .await;
+                    sender
+                        .send(None)
+                        .expect("failed to send message through channel");
+                    return;
+                }
+            };
+        let number_args =
             numbers
                 .iter()
                 .map(|n| n.to_string())
@@ -156,15 +230,19 @@ impl LoadingOptions {
                     let _ = write!(acc, "{} ", n);
                     acc
                 });
-        update_projection(projection, numbers.len() as f32);
+        let mut sim = PushSwapSim::default();
         match sim.load_random(&numbers, &instructions) {
-            Ok(_) => true,
+            Ok(_) => {
+                sender
+                    .send(Some(sim))
+                    .expect("failed to send message through channel");
+            }
             Err(line) => {
                 eprintln!("Error while loading instructions!");
                 eprintln!("Failed at instruction {}", line);
-                eprintln!("Numbers: [{}]", self.number_args);
+                eprintln!("Numbers: [{}]", number_args);
                 eprintln!("List of instructions: {}", instructions);
-                rfd::MessageDialog::new()
+                rfd::AsyncMessageDialog::new()
                     .set_level(rfd::MessageLevel::Error)
                     .set_title("Instruction parsing error")
                     .set_description(format!(
@@ -172,8 +250,11 @@ impl LoadingOptions {
                         line
                     ))
                     .set_buttons(rfd::MessageButtons::Ok)
-                    .show();
-                false
+                    .show()
+                    .await;
+                sender
+                    .send(None)
+                    .expect("failed to send message through channel");
             }
         }
     }
@@ -313,11 +394,46 @@ impl LoadingOptions {
                 }
             };
             ui.separator();
-            ui.horizontal(|ui| {
-                if ui.button("Visualize").clicked() {
-                    *show_playback = self.load_sim(sim, projection);
+            let mut clear_worker = false;
+            if let Some(worker) = self.worker.as_mut() {
+                if let Ok(Some(res)) = worker.receiver.try_recv() {
+                    let now = Instant::now();
+                    let duration = now - worker.start_time;
+                    self.gen_time = if worker.token.is_cancelled() {
+                        ExecutionTimeInfo::Killed(duration)
+                    } else { ExecutionTimeInfo::Finished(duration) };
+                    *sim = res;
                     *regenerate_render_data = true;
-                    *playing_sim = false;
+                    *show_playback = true;
+                    update_projection(projection, sim.amount() as f32);
+                    clear_worker = true;
+                }
+            }
+            if clear_worker {
+                let _ = self.worker.take();
+            }
+            ui.horizontal(|ui| {
+                match self.worker.as_ref() {
+                    None => {
+                        if ui.button("Visualize").clicked() {
+                            let (sender, receiver) = channel();
+                            let token = CancellationToken::new();
+                            let token_clone = token.clone();
+                            let gen_clone = self.gen_opt.clone();
+                            let source_clone = self.source_opt.clone();
+                            let start_time = Instant::now();
+                            self.worker = Some(AsyncWorker { receiver, token, start_time });
+                            tokio::spawn(async move {
+                                Self::load_sim(sender, token_clone, gen_clone, source_clone).await;
+                            });
+                        }
+                    }
+                    Some(worker) => {
+                        ui.spinner();
+                        if ui.button("Kill").clicked() {
+                            worker.token.cancel();
+                        }
+                    }
                 }
                 if ui.button("Clear").clicked() {
                     sim.clear();
@@ -325,6 +441,7 @@ impl LoadingOptions {
                     *regenerate_render_data = true;
                     *playing_sim = false;
                     *show_playback = false;
+                    self.gen_time = ExecutionTimeInfo::None;
                 }
                 if ui.button("Copy numbers to clipboard").on_hover_text("The list of generated numbers will be collapsed into a single line that can be pasted as program arguments. Useful if you want to debug a random sequence that was just generated.").clicked() {
                     let copy = self.number_args.clone();
@@ -339,6 +456,21 @@ impl LoadingOptions {
                         .show();
                 }
             });
+            if let Some(worker) = self.worker.as_ref() {
+                let now = Instant::now();
+                let duration = now - worker.start_time;
+                ui.label(format!("push_swap is running. Execution time: {:.3} seconds", duration.as_secs_f64()));
+            } else {
+                match &self.gen_time {
+                    ExecutionTimeInfo::None => {},
+                    ExecutionTimeInfo::Finished(d) => {
+                        ui.label(format!("Execution finished. Took {:.3} seconds", d.as_secs_f64()));
+                    }
+                    ExecutionTimeInfo::Killed(d) => {
+                        ui.label(format!("Execution aborted. Killed after {:.3} seconds", d.as_secs_f64()));
+                    }
+                }
+            }
         });
     }
 }
