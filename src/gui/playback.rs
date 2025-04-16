@@ -6,12 +6,14 @@ use crate::sim::PushSwapSim;
 
 pub struct PlaybackControls {
     auto_scroll_table: bool,
+    force_scroll: bool,
 }
 
 impl Default for PlaybackControls {
     fn default() -> Self {
         Self {
             auto_scroll_table: true,
+            force_scroll: false,
         }
     }
 }
@@ -162,7 +164,24 @@ impl PlaybackControls {
     ) {
         use egui_extras::{Column, TableBuilder};
 
-        ui.checkbox(&mut self.auto_scroll_table, "Scroll to current instruction");
+        let mut scroll_now = false;
+        if ui.button("Focus current instruction").clicked() {
+            scroll_now = true;
+        }
+        ui.checkbox(
+            &mut self.auto_scroll_table,
+            "Auto-scroll to current instruction when playing",
+        );
+        ui.add_enabled(
+            self.auto_scroll_table,
+            egui::Checkbox::new(
+                &mut self.force_scroll,
+                "Always scroll to current instruction at all times",
+            ),
+        );
+        if !self.auto_scroll_table {
+            self.force_scroll = false;
+        }
         let text_height = egui::TextStyle::Body
             .resolve(ui.style())
             .size
@@ -179,7 +198,7 @@ impl PlaybackControls {
             .sense(Sense::click())
             .animate_scrolling(false);
 
-        if playing_sim && self.auto_scroll_table {
+        if scroll_now || self.force_scroll || (playing_sim && self.auto_scroll_table) {
             table = table.scroll_to_row(sim.program_counter() + 1, Some(Align::Center));
         }
 
@@ -209,7 +228,9 @@ impl PlaybackControls {
                                 ui.label("➡");
                             }
                         }
-                        Ordering::Greater => {}
+                        Ordering::Greater => {
+                            ui.label("⚪");
+                        }
                     });
                     row.col(|ui| {
                         if !reached_end {
