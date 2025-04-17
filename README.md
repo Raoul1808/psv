@@ -5,9 +5,9 @@ Yet another *push\_swap* visualizer written in Rust. *psv* stands for
 
 ## Context
 
-*push_swap* is a 42 project where the objective is to create a program that
+*push\_swap* is a 42 project where the objective is to create a program that
 takes a sequence of numbers as input and outputs a series of instructions to
-sort those numbers by using two stacks and minimalist operations.
+sort those numbers by using two stacks and a minimalistic set of operations.
 
 This program helps visualise the output of the push\_swap program.
 
@@ -107,7 +107,7 @@ numbers.
 
 > [!NOTE]
 >
-> Instructions that do not sort numbers will not be taken into account when benchmarking.
+> Instructions that do not sort numbers will not be taken into account when showing the final benchmarking results.
 
 ## Features
 
