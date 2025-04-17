@@ -164,7 +164,6 @@ impl LoadingOptions {
                 let mut output = vec![];
                 loop {
                     let wait = child.try_wait();
-                    println!("Attempted waiting child: {:?}", wait);
                     if let Ok(Some(_)) = wait {
                         change_blocking_fd(stdout.as_raw_fd(), true);
                         let _ = stdout.read_to_end(&mut output);
