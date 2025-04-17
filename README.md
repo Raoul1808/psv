@@ -1,5 +1,8 @@
 # psv
 
+![GitHub Tag](https://img.shields.io/github/v/tag/Raoul1808/psv)
+[Download Latest](https://github.com/Raoul1808/psv/releases/latest/download/psv)
+
 Yet another *push\_swap* visualizer written in Rust. *psv* stands for
 **p**ush\_**s**wap **v**isualizer.
 
