@@ -90,7 +90,7 @@ impl Display for InstructionsSource {
 }
 
 struct AsyncWorker {
-    receiver: Receiver<Option<PushSwapSim>>,
+    receiver: Receiver<Result<PushSwapSim, String>>,
     token: CancellationToken,
     start_time: Instant,
 }
@@ -99,6 +99,7 @@ enum ExecutionTimeInfo {
     None,
     Finished(Duration),
     Killed(Duration),
+    Error(String),
 }
 
 pub struct LoadingOptions {
@@ -200,7 +201,7 @@ impl LoadingOptions {
     }
 
     async fn load_sim(
-        sender: Sender<Option<PushSwapSim>>,
+        sender: Sender<Result<PushSwapSim, String>>,
         token: CancellationToken,
         gen_opt: NumberGeneration,
         source_opt: InstructionsSource,
@@ -217,7 +218,7 @@ impl LoadingOptions {
                         .show()
                         .await;
                     sender
-                        .send(None)
+                        .send(Err(format!("Loading Error: {}", s)))
                         .expect("failed to send message through channel");
                     return;
                 }
@@ -234,7 +235,7 @@ impl LoadingOptions {
         match sim.load_random(&numbers, &instructions) {
             Ok(_) => {
                 sender
-                    .send(Some(sim))
+                    .send(Ok(sim))
                     .expect("failed to send message through channel");
             }
             Err(line) => {
@@ -253,7 +254,7 @@ impl LoadingOptions {
                     .show()
                     .await;
                 sender
-                    .send(None)
+                    .send(Err(format!("Parsing Error at instruction {}", line)))
                     .expect("failed to send message through channel");
             }
         }
@@ -396,17 +397,26 @@ impl LoadingOptions {
             ui.separator();
             let mut clear_worker = false;
             if let Some(worker) = self.worker.as_mut() {
-                if let Ok(Some(res)) = worker.receiver.try_recv() {
+                if let Ok(res) = worker.receiver.try_recv() {
                     let now = Instant::now();
                     let duration = now - worker.start_time;
-                    self.gen_time = if worker.token.is_cancelled() {
-                        ExecutionTimeInfo::Killed(duration)
-                    } else { ExecutionTimeInfo::Finished(duration) };
-                    *sim = res;
-                    *regenerate_render_data = true;
-                    *show_playback = true;
-                    update_projection(projection, sim.amount() as f32);
                     clear_worker = true;
+                    match res {
+                        Ok(res) => {
+                            *sim = res;
+                            self.gen_time = if worker.token.is_cancelled() {
+                                ExecutionTimeInfo::Killed(duration)
+                            } else {
+                                ExecutionTimeInfo::Finished(duration)
+                            };
+                            *regenerate_render_data = true;
+                            *show_playback = true;
+                            update_projection(projection, sim.amount() as f32);
+                        }
+                        Err(e) => {
+                            self.gen_time = ExecutionTimeInfo::Error(e);
+                        }
+                    }
                 }
             }
             if clear_worker {
@@ -468,6 +478,9 @@ impl LoadingOptions {
                     }
                     ExecutionTimeInfo::Killed(d) => {
                         ui.label(format!("Execution aborted. Killed after {:.3} seconds", d.as_secs_f64()));
+                    }
+                    ExecutionTimeInfo::Error(e) => {
+                        ui.label(e);
                     }
                 }
             }
