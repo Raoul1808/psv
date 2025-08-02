@@ -15,10 +15,10 @@ use crate::{egui_tools::EguiRenderer, gpu::WgpuContext, sortview::SortView};
 
 #[derive(Default)]
 pub struct App<'a> {
-    window: Option<Arc<Window>>,
-    wgpu_ctx: Option<WgpuContext<'a>>,
-    egui_renderer: Option<EguiRenderer>,
     sort_view: Option<SortView>,
+    egui_renderer: Option<EguiRenderer>,
+    wgpu_ctx: Option<WgpuContext<'a>>,
+    window: Option<Arc<Window>>,
 }
 
 impl App<'_> {
