@@ -13,8 +13,8 @@ use std::{
 };
 
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
-use rand::{seq::SliceRandom, thread_rng, Rng};
-use tokio::sync::oneshot::{channel, Receiver, Sender};
+use rand::{Rng, rng, seq::SliceRandom};
+use tokio::sync::oneshot::{Receiver, Sender, channel};
 use tokio_util::sync::CancellationToken;
 
 use crate::{config::Config, sim::PushSwapSim};
@@ -41,13 +41,13 @@ impl NumberGeneration {
             NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
             NumberGeneration::Random(r) => {
                 let mut nums: Vec<_> = (0..(*r as i64)).collect();
-                nums.shuffle(&mut thread_rng());
+                nums.shuffle(&mut rng());
                 Ok(nums)
             }
             NumberGeneration::RandomRanged(r, n) => {
                 let mut map = HashSet::new();
                 while map.len() < *n {
-                    map.insert(thread_rng().gen_range(r.clone()));
+                    map.insert(rng().random_range(r.clone()));
                 }
                 Ok(map.into_iter().collect())
             }
@@ -395,26 +395,24 @@ impl LoadingOptions {
             };
             ui.separator();
             let mut clear_worker = false;
-            if let Some(worker) = self.worker.as_mut() {
-                if let Ok(res) = worker.receiver.try_recv() {
-                    let now = Instant::now();
-                    let duration = now - worker.start_time;
-                    clear_worker = true;
-                    match res {
-                        Ok(res) => {
-                            *sim = res;
-                            self.gen_time = if worker.token.is_cancelled() {
-                                ExecutionTimeInfo::Killed(duration)
-                            } else {
-                                ExecutionTimeInfo::Finished(duration)
-                            };
-                            *regenerate_render_data = true;
-                            *show_playback = true;
-                            update_projection(projection, sim.amount() as f32);
-                        }
-                        Err(e) => {
-                            self.gen_time = ExecutionTimeInfo::Error(e);
-                        }
+            if let Some(worker) = self.worker.as_mut() && let Ok(res) = worker.receiver.try_recv() {
+                let now = Instant::now();
+                let duration = now - worker.start_time;
+                clear_worker = true;
+                match res {
+                    Ok(res) => {
+                        *sim = res;
+                        self.gen_time = if worker.token.is_cancelled() {
+                            ExecutionTimeInfo::Killed(duration)
+                        } else {
+                            ExecutionTimeInfo::Finished(duration)
+                        };
+                        *regenerate_render_data = true;
+                        *show_playback = true;
+                        update_projection(projection, sim.amount() as f32);
+                    }
+                    Err(e) => {
+                        self.gen_time = ExecutionTimeInfo::Error(e);
                     }
                 }
             }

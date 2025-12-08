@@ -4,7 +4,7 @@ use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-use crate::vertex::{Vertex, VertexIndexPair, INDICES, VERTICES};
+use crate::vertex::{INDICES, VERTICES, Vertex, VertexIndexPair};
 
 pub struct WgpuRenderPass {
     pub surface_texture: wgpu::SurfaceTexture,
@@ -41,14 +41,11 @@ impl<'a> WgpuContext<'a> {
             .await
             .expect("no graphics adapter found");
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    ..Default::default()
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                ..Default::default()
+            })
             .await
             .expect("no device found");
 
@@ -255,6 +252,7 @@ impl<'a> WgpuContext<'a> {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &surface_view,
                     resolve_target: None,
+                    depth_slice: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.clear_color),
                         store: wgpu::StoreOp::Store,

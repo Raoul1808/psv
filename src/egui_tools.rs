@@ -1,5 +1,5 @@
 use egui::Context;
-use egui_wgpu::{Renderer, ScreenDescriptor};
+use egui_wgpu::{Renderer, RendererOptions, ScreenDescriptor};
 use egui_winit::State;
 use winit::{event::WindowEvent, window::Window};
 
@@ -34,9 +34,12 @@ impl EguiRenderer {
         let egui_renderer = Renderer::new(
             device,
             output_color_format,
-            output_depth_format,
-            msaa_samples,
-            true,
+            RendererOptions {
+                msaa_samples,
+                depth_stencil_format: output_depth_format,
+                dithering: true,
+                ..Default::default()
+            },
         );
 
         EguiRenderer {
@@ -95,6 +98,7 @@ impl EguiRenderer {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: window_surface_view,
                 resolve_target: None,
+                depth_slice: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,

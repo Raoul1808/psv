@@ -1,7 +1,7 @@
 use core::panic;
 use std::{
     fs::{self, File},
-    io::{stdin, stdout, Write},
+    io::{Write, stdin, stdout},
     process::Command,
     str::FromStr,
     sync::{Arc, Mutex},
@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use threadpool::ThreadPool;
 
 use crate::sim::PushSwapSim;
@@ -51,7 +51,7 @@ pub fn benchmark() {
         pool.execute(move || {
             let mut sim = PushSwapSim::default();
             let mut numbers: Vec<_> = (0..numbers).collect();
-            numbers.shuffle(&mut thread_rng());
+            numbers.shuffle(&mut rng());
             let args: Vec<_> = numbers.iter().map(u32::to_string).collect();
             let instructions = Command::new(exec_path.clone())
                 .args(args)
@@ -126,5 +126,7 @@ pub fn benchmark() {
         avg,
         max
     );
-    println!("Note: these values may change and can be more or less accurate depending on how many tests you ran.");
+    println!(
+        "Note: these values may change and can be more or less accurate depending on how many tests you ran."
+    );
 }

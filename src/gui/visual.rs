@@ -1,7 +1,7 @@
 use egui::{
-    pos2, Button, ComboBox, Context, Mesh, Rect, Rgba, Sense, Shape, Slider, Ui, Widget, Window,
+    Button, ComboBox, Context, Mesh, Rect, Rgba, Sense, Shape, Slider, Ui, Widget, Window, pos2,
 };
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 
 use crate::{
     config::{ColorProfile, Config, SortColors},
@@ -127,7 +127,7 @@ impl VisualOptions {
                 self.preview_nums.sort();
             }
             if ui.button("Shuffle").clicked() {
-                self.preview_nums.shuffle(&mut thread_rng());
+                self.preview_nums.shuffle(&mut rng());
             }
         });
         ui.scope(|ui| {

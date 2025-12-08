@@ -102,16 +102,14 @@ impl ApplicationHandler for App<'_> {
                 event_loop.exit();
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if !egui_renderer.wants_keyboard_input() {
-                    if event.state.is_pressed() {
-                        if let Key::Named(winit::keyboard::NamedKey::Escape) =
-                            event.logical_key.as_ref()
-                        {
-                            event_loop.exit();
-                        }
-                    }
-                    self.handle_input(&event);
+                if !egui_renderer.wants_keyboard_input()
+                    && event.state.is_pressed()
+                    && let Key::Named(winit::keyboard::NamedKey::Escape) =
+                        event.logical_key.as_ref()
+                {
+                    event_loop.exit();
                 }
+                self.handle_input(&event);
             }
             WindowEvent::Resized(new_size) => {
                 if let Some(wgpu_ctx) = self.wgpu_ctx.as_mut() {
