@@ -71,11 +71,57 @@ impl Display for NumberGeneration {
     }
 }
 
+#[derive(Default, PartialEq, Clone, Copy)]
+enum ExecutableMode {
+    #[default]
+    None,
+    Simple,
+    Medium,
+    Complex,
+    Adaptive,
+}
+
+impl ExecutableMode {
+    pub const ALL: [ExecutableMode; 5] = [
+        ExecutableMode::None,
+        ExecutableMode::Simple,
+        ExecutableMode::Medium,
+        ExecutableMode::Complex,
+        ExecutableMode::Adaptive,
+    ];
+    pub fn to_arg(self) -> String {
+        match self {
+            ExecutableMode::None => "",
+            ExecutableMode::Simple => "--simple",
+            ExecutableMode::Medium => "--medium",
+            ExecutableMode::Complex => "--complex",
+            ExecutableMode::Adaptive => "--adaptive",
+        }
+        .to_string()
+    }
+}
+
+impl Display for ExecutableMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match *self {
+            ExecutableMode::None => "None",
+            ExecutableMode::Simple => "Simple",
+            ExecutableMode::Medium => "Medium",
+            ExecutableMode::Complex => "Complex",
+            ExecutableMode::Adaptive => "Adaptive",
+        };
+        write!(f, "{str}")
+    }
+}
+
 #[derive(PartialEq, Clone)]
 enum InstructionsSource {
     Manual(String),
     File(Option<PathBuf>),
-    Executable(Option<PathBuf>),
+    Executable {
+        path: Option<PathBuf>,
+        mode: ExecutableMode,
+    },
 }
 
 impl Display for InstructionsSource {
@@ -83,7 +129,7 @@ impl Display for InstructionsSource {
         let str = match *self {
             InstructionsSource::Manual(_) => "User Input",
             InstructionsSource::File(_) => "From File",
-            InstructionsSource::Executable(_) => "Program Output",
+            InstructionsSource::Executable { .. } => "Program Output",
         };
         write!(f, "{}", str)
     }
@@ -134,7 +180,10 @@ impl LoadingOptions {
     pub fn new(config: &Config) -> LoadingOptions {
         LoadingOptions {
             gen_opt: NumberGeneration::Random(10),
-            source_opt: InstructionsSource::Executable(config.push_swap_path.clone()),
+            source_opt: InstructionsSource::Executable {
+                path: config.push_swap_path.clone(),
+                mode: Default::default(),
+            },
             worker: None,
             gen_time: ExecutionTimeInfo::None,
             number_args: String::new(),
@@ -147,16 +196,19 @@ impl LoadingOptions {
         source_opt: InstructionsSource,
     ) -> Result<(String, Vec<i64>), String> {
         let (instructions, numbers) = match &source_opt {
-            InstructionsSource::Executable(path) => {
+            InstructionsSource::Executable { path, mode } => {
                 let path = path.as_ref().ok_or("No executable selected".to_string())?;
                 let numbers = gen_opt
                     .get_numbers()
                     .map_err(|err| format!("error while parsing numbers: {}", err))?;
                 let args: Vec<_> = numbers.iter().map(|n| n.to_string()).collect();
-                let mut child = Command::new(path)
+                let mut cmd = Command::new(path);
+                if *mode != ExecutableMode::None {
+                    cmd.arg(mode.to_arg());
+                }
+                let mut child = cmd
                     .args(args)
                     .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
                     .spawn()
                     .map_err(|err| format!("error while running program: {}", err))?;
                 let mut stdout = child.stdout.take().unwrap();
@@ -343,11 +395,11 @@ impl LoadingOptions {
                     let (ins, file_path, exe_path) = match &self.source_opt {
                         Manual(i) => (i.clone(), None, None),
                         File(p) => (String::new(), p.clone(), None),
-                        Executable(p) => (String::new(), None, p.clone()),
+                        Executable { path, .. } => (String::new(), None, path.clone()),
                     };
                     ui.selectable_value(&mut self.source_opt, Manual(ins), "User Input").on_hover_text("You will be able to input a list of push_swap instructions yourself.");
                     ui.selectable_value(&mut self.source_opt, File(file_path), "From File").on_hover_text("The selected file's contents will be interpreted as a list of push_swap instructions.");
-                    ui.selectable_value(&mut self.source_opt, Executable(exe_path), "Program Output").on_hover_text("The selected program will be executed with the generated numbers above fed as input to the program. The output of the program will be interpreted as a list of push_swap instructions.");
+                    ui.selectable_value(&mut self.source_opt, Executable { path: exe_path, mode: Default::default() }, "Program Output").on_hover_text("The selected program will be executed with the generated numbers above fed as input to the program. The output of the program will be interpreted as a list of push_swap instructions.");
                 });
             match &mut self.source_opt {
                 InstructionsSource::Manual(i) => {
@@ -373,24 +425,31 @@ impl LoadingOptions {
                         ui.label(format!("Selected File: {}", path));
                     });
                 }
-                InstructionsSource::Executable(p) => {
+                InstructionsSource::Executable { path, mode } => {
                     ui.horizontal(|ui| {
                         if ui.button("Browse").clicked() {
-                            let path = rfd::FileDialog::new()
+                            let p = rfd::FileDialog::new()
                                 .set_title("Select push_swap executable")
                                 .pick_file();
-                            if let Some(path) = path {
-                                *p = Some(path.clone());
-                                config.push_swap_path = Some(path);
-                                config.save();
+                            if let Some(p) = p {
+                                *path = Some(p.clone());
+                                config.push_swap_path = Some(p);
+                                config.save()
                             }
                         }
-                        let path = p
+                        let path = path
                             .clone()
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or("None".into());
                         ui.label(format!("Selected Program: {}", path));
                     });
+                    ComboBox::from_label("Sorting Strategy")
+                        .selected_text(mode.to_string())
+                        .show_ui(ui, |ui| {
+                            for m in ExecutableMode::ALL {
+                                ui.selectable_value(mode, m, m.to_string());
+                            }
+                        });
                 }
             };
             ui.separator();
