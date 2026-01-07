@@ -72,7 +72,7 @@ impl Display for NumberGeneration {
 }
 
 #[derive(Default, PartialEq, Clone, Copy)]
-enum ExecutableMode {
+pub enum SortingStrategy {
     #[default]
     None,
     Simple,
@@ -81,34 +81,34 @@ enum ExecutableMode {
     Adaptive,
 }
 
-impl ExecutableMode {
-    pub const ALL: [ExecutableMode; 5] = [
-        ExecutableMode::None,
-        ExecutableMode::Simple,
-        ExecutableMode::Medium,
-        ExecutableMode::Complex,
-        ExecutableMode::Adaptive,
+impl SortingStrategy {
+    pub const ALL: [SortingStrategy; 5] = [
+        SortingStrategy::None,
+        SortingStrategy::Simple,
+        SortingStrategy::Medium,
+        SortingStrategy::Complex,
+        SortingStrategy::Adaptive,
     ];
     pub fn to_arg(self) -> String {
         match self {
-            ExecutableMode::None => "",
-            ExecutableMode::Simple => "--simple",
-            ExecutableMode::Medium => "--medium",
-            ExecutableMode::Complex => "--complex",
-            ExecutableMode::Adaptive => "--adaptive",
+            SortingStrategy::None => "",
+            SortingStrategy::Simple => "--simple",
+            SortingStrategy::Medium => "--medium",
+            SortingStrategy::Complex => "--complex",
+            SortingStrategy::Adaptive => "--adaptive",
         }
         .to_string()
     }
 }
 
-impl Display for ExecutableMode {
+impl Display for SortingStrategy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match *self {
-            ExecutableMode::None => "None",
-            ExecutableMode::Simple => "Simple",
-            ExecutableMode::Medium => "Medium",
-            ExecutableMode::Complex => "Complex",
-            ExecutableMode::Adaptive => "Adaptive",
+            SortingStrategy::None => "None",
+            SortingStrategy::Simple => "Simple",
+            SortingStrategy::Medium => "Medium",
+            SortingStrategy::Complex => "Complex",
+            SortingStrategy::Adaptive => "Adaptive",
         };
         write!(f, "{str}")
     }
@@ -120,7 +120,7 @@ enum InstructionsSource {
     File(Option<PathBuf>),
     Executable {
         path: Option<PathBuf>,
-        mode: ExecutableMode,
+        mode: SortingStrategy,
     },
 }
 
@@ -203,7 +203,7 @@ impl LoadingOptions {
                     .map_err(|err| format!("error while parsing numbers: {}", err))?;
                 let args: Vec<_> = numbers.iter().map(|n| n.to_string()).collect();
                 let mut cmd = Command::new(path);
-                if *mode != ExecutableMode::None {
+                if *mode != SortingStrategy::None {
                     cmd.arg(mode.to_arg());
                 }
                 let mut child = cmd
@@ -446,7 +446,7 @@ impl LoadingOptions {
                     ComboBox::from_label("Sorting Strategy")
                         .selected_text(mode.to_string())
                         .show_ui(ui, |ui| {
-                            for m in ExecutableMode::ALL {
+                            for m in SortingStrategy::ALL {
                                 ui.selectable_value(mode, m, m.to_string());
                             }
                         });

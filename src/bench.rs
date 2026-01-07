@@ -1,33 +1,26 @@
 use core::panic;
 use std::{
     fs::{self, File},
-    io::{Write, stdin, stdout},
+    io::{Write, stdout},
     process::Command,
-    str::FromStr,
     sync::{Arc, Mutex},
     thread::sleep,
     time::Duration,
 };
 
+use inquire::{Select, prompt_u32, prompt_usize};
 use rand::{rng, seq::SliceRandom};
 use threadpool::ThreadPool;
 
-use crate::sim::PushSwapSim;
-
-fn prompt<T>(prompt: &str) -> Result<T, T::Err>
-where
-    T: FromStr,
-{
-    println!("{}", prompt);
-    let mut buf = String::new();
-    stdin().read_line(&mut buf).expect("failed to read stdin");
-    buf.trim_end().parse()
-}
+use crate::{gui::SortingStrategy, sim::PushSwapSim};
 
 pub fn benchmark() {
-    let numbers: u32 =
-        prompt("Enter amount of sorting numbers to use").expect("invalid number given");
-    let tests: usize = prompt("Enter amount of tests to execute").expect("invalid number given");
+    let numbers = prompt_u32("Amount of numbers to sort:").expect("failed to get number");
+    let tests =
+        prompt_usize("Amount of tests to execute for benchmark:").expect("failed to get number");
+    let strategy = Select::new("Sorting strategy:", SortingStrategy::ALL.to_vec())
+        .prompt()
+        .expect("failed to get sorting strategy");
 
     let exec_path = if let Ok(path) = fs::canonicalize("push_swap") {
         println!("Found push_swap executable in current directory");
@@ -53,7 +46,11 @@ pub fn benchmark() {
             let mut numbers: Vec<_> = (0..numbers).collect();
             numbers.shuffle(&mut rng());
             let args: Vec<_> = numbers.iter().map(u32::to_string).collect();
-            let instructions = Command::new(exec_path.clone())
+            let mut cmd = Command::new(exec_path.clone());
+            if strategy != SortingStrategy::None {
+                cmd.arg(strategy.to_arg());
+            }
+            let instructions = cmd
                 .args(args)
                 .output()
                 .expect("push_swap command failed to run");
