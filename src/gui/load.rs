@@ -28,8 +28,15 @@ const RANGE_MAX: i64 = i16::MAX as i64;
 enum NumberGeneration {
     Ordered(usize),
     ReverseOrdered(usize),
-    Random(usize),
-    RandomRanged(RangeInclusive<i64>, usize),
+    Random {
+        amount: usize,
+        disorder: Option<RangeInclusive<f64>>,
+    },
+    RandomRanged {
+        range: RangeInclusive<i64>,
+        amount: usize,
+        disorder: Option<RangeInclusive<f64>>,
+    },
     Arbitrary(String),
     Preset(usize),
 }
@@ -53,15 +60,15 @@ impl NumberGeneration {
         match &self {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
             NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
-            NumberGeneration::Random(r) => {
-                let mut nums: Vec<_> = (0..(*r as i64)).collect();
+            NumberGeneration::Random { amount, .. } => {
+                let mut nums: Vec<_> = (0..(*amount as i64)).collect();
                 nums.shuffle(&mut rng());
                 Ok(nums)
             }
-            NumberGeneration::RandomRanged(r, n) => {
+            NumberGeneration::RandomRanged { range, amount, .. } => {
                 let mut map = HashSet::new();
-                while map.len() < *n {
-                    map.insert(rand::random_range(r.clone()));
+                while map.len() < *amount {
+                    map.insert(rand::random_range(range.clone()));
                 }
                 Ok(map.into_iter().collect())
             }
@@ -75,8 +82,8 @@ impl Display for NumberGeneration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match *self {
             NumberGeneration::Arbitrary(_) => "User Input",
-            NumberGeneration::Random(_) => "Random Normalized",
-            NumberGeneration::RandomRanged(..) => "Random from Custom Range",
+            NumberGeneration::Random { .. } => "Random Normalized",
+            NumberGeneration::RandomRanged { .. } => "Random from Custom Range",
             NumberGeneration::Ordered(_) => "Ordered",
             NumberGeneration::ReverseOrdered(_) => "Reverse Ordered",
             NumberGeneration::Preset(_) => "Preset",
@@ -194,7 +201,10 @@ pub fn change_blocking_fd(fd: std::os::unix::io::RawFd, blocking: bool) {
 impl LoadingOptions {
     pub fn new(config: &Config) -> LoadingOptions {
         LoadingOptions {
-            gen_opt: NumberGeneration::Random(10),
+            gen_opt: NumberGeneration::Random {
+                amount: 10,
+                disorder: None,
+            },
             source_opt: InstructionsSource::Executable {
                 path: config.push_swap_path.clone(),
                 mode: Default::default(),
@@ -344,38 +354,46 @@ impl LoadingOptions {
                 .selected_text(self.gen_opt.to_string())
                 .show_ui(ui, |ui| {
                     use NumberGeneration::*;
-                    let (range, num_gen, str, i) = match &self.gen_opt {
-                        Ordered(r) | ReverseOrdered(r) | Random(r) => (0..=(*r as i64 - 1), *r, String::new(), 0),
-                        RandomRanged(r, n) => (r.clone(), *n, String::new(), 0),
-                        Arbitrary(s) => (0..=9, 10, s.clone(), 0),
-                        Preset(i) => (0..=9, 10, String::new(), *i),
+                    let (range, num_gen, str, i, disorder) = match &self.gen_opt {
+                        Ordered(r) | ReverseOrdered(r) => (0..=(*r as i64 - 1), *r, String::new(), 0, None),
+                        Random { amount, disorder } => (0..=(*amount as i64 - 1), *amount, String::new(), 0, disorder.clone()),
+                        RandomRanged { range, amount, disorder } => (range.clone(), *amount, String::new(), 0, disorder.clone()),
+                        Arbitrary(s) => (0..=9, 10, s.clone(), 0, None),
+                        Preset(i) => (0..=9, 10, String::new(), *i, None),
                     };
                     ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered").on_hover_text("Numbers will be generated in order from 0 to n.");
                     ui.selectable_value(&mut self.gen_opt, ReverseOrdered(num_gen), "Reverse Ordered").on_hover_text("Numbers will be generated in reverse order from n to 0.");
-                    ui.selectable_value(&mut self.gen_opt, Random(num_gen), "Random Normalized").on_hover_text("Numbers will be generated from 0 to n, then they will be shuffled.");
+                    ui.selectable_value(&mut self.gen_opt, Random { amount: num_gen, disorder: disorder.clone() }, "Random Normalized").on_hover_text("Numbers will be generated from 0 to n, then they will be shuffled.");
                     ui.selectable_value(
                         &mut self.gen_opt,
-                        RandomRanged(range, num_gen),
+                        RandomRanged { range, amount: num_gen, disorder: disorder.clone() },
                         "Random from Custom Range",
                     ).on_hover_text("Numbers will be picked randomly from the specified range. Visually, the numbers will appear normalized.");
                     ui.selectable_value(&mut self.gen_opt, Arbitrary(str), "User Input").on_hover_text("You will be able to input a list of numbers yourself.");
                     ui.selectable_value(&mut self.gen_opt, Preset(i), "Preset").on_hover_text("Numbers will be selected from a few hardcoded presets. This option was added just for fun, but some of the tests in here are known to break some programs.");
                 });
             match &mut self.gen_opt {
-                NumberGeneration::Ordered(r) | NumberGeneration::ReverseOrdered(r) | NumberGeneration::Random(r) => {
+                NumberGeneration::Ordered(r) | NumberGeneration::ReverseOrdered(r) => {
                     ui.horizontal(|ui| {
                         DragValue::new(r).ui(ui);
                         ui.label("Numbers to Generate");
                     });
                 }
-                NumberGeneration::RandomRanged(r, s) => {
+                NumberGeneration::Random { amount, .. } => {
                     ui.horizontal(|ui| {
-                        DragValue::new(s).ui(ui);
+                        DragValue::new(amount).ui(ui);
+                        ui.label("Numbers to Generate");
+                    });
+                    ui.label("Disorder TBD");
+                }
+                NumberGeneration::RandomRanged { range, amount, .. } => {
+                    ui.horizontal(|ui| {
+                        DragValue::new(amount).ui(ui);
                         ui.label("Numbers to Generate");
                     });
                     ui.horizontal(|ui| {
-                        let mut start = *r.start();
-                        let mut end = *r.end();
+                        let mut start = *range.start();
+                        let mut end = *range.end();
                         ui.label("Random numbers from");
                         DragValue::new(&mut start)
                             .range(RANGE_MIN..=(end - 1))
@@ -386,9 +404,10 @@ impl LoadingOptions {
                             .range((start + 1)..=RANGE_MAX)
                             .clamp_existing_to_range(true)
                             .ui(ui);
-                        *r = start..=end;
-                        *s = ((end - start + 1) as usize).min(*s);
+                        *range = start..=end;
+                        *amount = ((end - start + 1) as usize).min(*amount);
                     });
+                    ui.label("Disorder TBD");
                 }
                 NumberGeneration::Arbitrary(s) => {
                     ui.horizontal(|ui| {
