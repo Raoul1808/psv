@@ -1,10 +1,7 @@
 use std::{
-    collections::HashSet,
     fmt::{Display, Write},
     fs,
     io::Read,
-    num::ParseIntError,
-    ops::RangeInclusive,
     os::fd::AsRawFd,
     path::PathBuf,
     process::{Command, Stdio},
@@ -13,84 +10,18 @@ use std::{
 };
 
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
-use rand::{rng, seq::SliceRandom};
+use egui_double_slider::DoubleSlider;
 use tokio::sync::oneshot::{Receiver, Sender, channel};
 use tokio_util::sync::CancellationToken;
 
-use crate::{config::Config, sim::PushSwapSim};
-
-use super::NUMBER_PRESETS;
+use crate::{
+    config::Config,
+    numbers::{NUMBER_PRESETS, NumberGeneration, compute_disorder},
+    sim::PushSwapSim,
+};
 
 const RANGE_MIN: i64 = i16::MIN as i64;
 const RANGE_MAX: i64 = i16::MAX as i64;
-
-#[derive(PartialEq, Clone)]
-enum NumberGeneration {
-    Ordered(usize),
-    ReverseOrdered(usize),
-    Random {
-        amount: usize,
-        disorder: Option<RangeInclusive<f64>>,
-    },
-    RandomRanged {
-        range: RangeInclusive<i64>,
-        amount: usize,
-        disorder: Option<RangeInclusive<f64>>,
-    },
-    Arbitrary(String),
-    Preset(usize),
-}
-
-fn compute_disorder(stack: &[u32]) -> f64 {
-    let mut mistakes = 0;
-    let mut total_pairs = 0;
-    for i in 0..(stack.len() - 1) {
-        for j in (i + 1)..(stack.len() - 1) {
-            total_pairs += 1;
-            if stack[i] > stack[j] {
-                mistakes += 1;
-            }
-        }
-    }
-    mistakes as f64 / total_pairs as f64
-}
-
-impl NumberGeneration {
-    pub fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
-        match &self {
-            NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
-            NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
-            NumberGeneration::Random { amount, .. } => {
-                let mut nums: Vec<_> = (0..(*amount as i64)).collect();
-                nums.shuffle(&mut rng());
-                Ok(nums)
-            }
-            NumberGeneration::RandomRanged { range, amount, .. } => {
-                let mut map = HashSet::new();
-                while map.len() < *amount {
-                    map.insert(rand::random_range(range.clone()));
-                }
-                Ok(map.into_iter().collect())
-            }
-            NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
-            NumberGeneration::Preset(i) => Ok(NUMBER_PRESETS[*i].1.to_vec()),
-        }
-    }
-}
-
-impl Display for NumberGeneration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = match *self {
-            NumberGeneration::Arbitrary(_) => "User Input",
-            NumberGeneration::Random { .. } => "Random Normalized",
-            NumberGeneration::RandomRanged { .. } => "Random from Custom Range",
-            NumberGeneration::Ordered(_) => "Ordered",
-            NumberGeneration::ReverseOrdered(_) => "Reverse Ordered",
-            NumberGeneration::Preset(_) => "Preset",
-        };
-        write!(f, "{}", str)
-    }
-}
 
 #[derive(Default, PartialEq, Clone, Copy)]
 pub enum SortingStrategy {
@@ -379,14 +310,31 @@ impl LoadingOptions {
                         ui.label("Numbers to Generate");
                     });
                 }
-                NumberGeneration::Random { amount, .. } => {
+                NumberGeneration::Random { amount, disorder } => {
                     ui.horizontal(|ui| {
                         DragValue::new(amount).ui(ui);
                         ui.label("Numbers to Generate");
                     });
-                    ui.label("Disorder TBD");
+                    let mut enabled_disorder = disorder.is_some();
+                    ui.checkbox(&mut enabled_disorder, "Generate with target disorder");
+                    if let Some(r) = disorder {
+                        let (mut start, mut end) = (*r.start(), *r.end());
+                        ui.label("Disorder:");
+                        ui.horizontal(|ui| {
+                            DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
+                                .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
+                                .ui(ui);
+                            ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
+                        });
+                        *r = start..=end;
+                    }
+                    if enabled_disorder && disorder.is_none() {
+                        *disorder = Some(0.2..=0.8);
+                    } else if !enabled_disorder && disorder.is_some() {
+                        *disorder = None;
+                    }
                 }
-                NumberGeneration::RandomRanged { range, amount, .. } => {
+                NumberGeneration::RandomRanged { range, amount, disorder } => {
                     ui.horizontal(|ui| {
                         DragValue::new(amount).ui(ui);
                         ui.label("Numbers to Generate");
@@ -407,7 +355,24 @@ impl LoadingOptions {
                         *range = start..=end;
                         *amount = ((end - start + 1) as usize).min(*amount);
                     });
-                    ui.label("Disorder TBD");
+                    let mut enabled_disorder = disorder.is_some();
+                    ui.checkbox(&mut enabled_disorder, "Generate with target disorder");
+                    if let Some(r) = disorder {
+                        let (mut start, mut end) = (*r.start(), *r.end());
+                        ui.label("Disorder:");
+                        ui.horizontal(|ui| {
+                            DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
+                                .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
+                                .ui(ui);
+                            ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
+                        });
+                        *r = start..=end;
+                    }
+                    if enabled_disorder && disorder.is_none() {
+                        *disorder = Some(0.2..=0.8);
+                    } else if !enabled_disorder && disorder.is_some() {
+                        *disorder = None;
+                    }
                 }
                 NumberGeneration::Arbitrary(s) => {
                     ui.horizontal(|ui| {

@@ -14,6 +14,7 @@ mod egui_tools;
 mod gpu;
 mod gradient;
 mod gui;
+mod numbers;
 mod sim;
 mod sortview;
 mod util;
