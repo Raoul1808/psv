@@ -13,7 +13,7 @@ use std::{
 };
 
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
-use rand::{Rng, rng, seq::SliceRandom};
+use rand::{rng, seq::SliceRandom};
 use tokio::sync::oneshot::{Receiver, Sender, channel};
 use tokio_util::sync::CancellationToken;
 
@@ -61,7 +61,7 @@ impl NumberGeneration {
             NumberGeneration::RandomRanged(r, n) => {
                 let mut map = HashSet::new();
                 while map.len() < *n {
-                    map.insert(rng().random_range(r.clone()));
+                    map.insert(rand::random_range(r.clone()));
                 }
                 Ok(map.into_iter().collect())
             }
