@@ -319,7 +319,7 @@ impl LoadingOptions {
                     if disorder.enabled {
                         ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
                         let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
-                        ui.label("Disorder:");
+                        ui.label("Target Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
                                 .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
@@ -354,7 +354,7 @@ impl LoadingOptions {
                     if disorder.enabled {
                         ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
                         let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
-                        ui.label("Disorder:");
+                        ui.label("Target Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
                                 .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
