@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::Config,
-    numbers::{NUMBER_PRESETS, NumberGeneration, compute_disorder},
+    numbers::{DisorderSettings, NUMBER_PRESETS, NumberGeneration, compute_disorder},
     sim::PushSwapSim,
 };
 
@@ -134,7 +134,7 @@ impl LoadingOptions {
         LoadingOptions {
             gen_opt: NumberGeneration::Random {
                 amount: 10,
-                disorder: None,
+                disorder: DisorderSettings::default(),
             },
             source_opt: InstructionsSource::Executable {
                 path: config.push_swap_path.clone(),
@@ -286,11 +286,11 @@ impl LoadingOptions {
                 .show_ui(ui, |ui| {
                     use NumberGeneration::*;
                     let (range, num_gen, str, i, disorder) = match &self.gen_opt {
-                        Ordered(r) | ReverseOrdered(r) => (0..=(*r as i64 - 1), *r, String::new(), 0, None),
+                        Ordered(r) | ReverseOrdered(r) => (0..=(*r as i64 - 1), *r, String::new(), 0, DisorderSettings::default()),
                         Random { amount, disorder } => (0..=(*amount as i64 - 1), *amount, String::new(), 0, disorder.clone()),
                         RandomRanged { range, amount, disorder } => (range.clone(), *amount, String::new(), 0, disorder.clone()),
-                        Arbitrary(s) => (0..=9, 10, s.clone(), 0, None),
-                        Preset(i) => (0..=9, 10, String::new(), *i, None),
+                        Arbitrary(s) => (0..=9, 10, s.clone(), 0, DisorderSettings::default()),
+                        Preset(i) => (0..=9, 10, String::new(), *i, DisorderSettings::default()),
                     };
                     ui.selectable_value(&mut self.gen_opt, Ordered(num_gen), "Ordered").on_hover_text("Numbers will be generated in order from 0 to n.");
                     ui.selectable_value(&mut self.gen_opt, ReverseOrdered(num_gen), "Reverse Ordered").on_hover_text("Numbers will be generated in reverse order from n to 0.");
@@ -315,10 +315,10 @@ impl LoadingOptions {
                         DragValue::new(amount).ui(ui);
                         ui.label("Numbers to Generate");
                     });
-                    let mut enabled_disorder = disorder.is_some();
-                    ui.checkbox(&mut enabled_disorder, "Generate with target disorder");
-                    if let Some(r) = disorder {
-                        let (mut start, mut end) = (*r.start(), *r.end());
+                    ui.checkbox(&mut disorder.enabled, "Generate with target disorder");
+                    if disorder.enabled {
+                        ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
+                        let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
                         ui.label("Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
@@ -326,12 +326,7 @@ impl LoadingOptions {
                                 .ui(ui);
                             ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
                         });
-                        *r = start..=end;
-                    }
-                    if enabled_disorder && disorder.is_none() {
-                        *disorder = Some(0.2..=0.8);
-                    } else if !enabled_disorder && disorder.is_some() {
-                        *disorder = None;
+                        disorder.range = start..=end;
                     }
                 }
                 NumberGeneration::RandomRanged { range, amount, disorder } => {
@@ -355,10 +350,10 @@ impl LoadingOptions {
                         *range = start..=end;
                         *amount = ((end - start + 1) as usize).min(*amount);
                     });
-                    let mut enabled_disorder = disorder.is_some();
-                    ui.checkbox(&mut enabled_disorder, "Generate with target disorder");
-                    if let Some(r) = disorder {
-                        let (mut start, mut end) = (*r.start(), *r.end());
+                    ui.checkbox(&mut disorder.enabled, "Generate with target disorder");
+                    if disorder.enabled {
+                        ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
+                        let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
                         ui.label("Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
@@ -366,12 +361,7 @@ impl LoadingOptions {
                                 .ui(ui);
                             ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
                         });
-                        *r = start..=end;
-                    }
-                    if enabled_disorder && disorder.is_none() {
-                        *disorder = Some(0.2..=0.8);
-                    } else if !enabled_disorder && disorder.is_some() {
-                        *disorder = None;
+                        disorder.range = start..=end;
                     }
                 }
                 NumberGeneration::Arbitrary(s) => {

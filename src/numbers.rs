@@ -2,18 +2,35 @@ use std::{collections::HashSet, fmt::Display, num::ParseIntError, ops::RangeIncl
 
 use rand::seq::SliceRandom;
 
+#[derive(PartialEq, Debug, Clone)]
+pub struct DisorderSettings {
+    pub enabled: bool,
+    pub shuffle: bool,
+    pub range: RangeInclusive<f64>,
+}
+
+impl Default for DisorderSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            shuffle: true,
+            range: 0.2..=0.8,
+        }
+    }
+}
+
 #[derive(PartialEq, Clone)]
 pub enum NumberGeneration {
     Ordered(usize),
     ReverseOrdered(usize),
     Random {
         amount: usize,
-        disorder: Option<RangeInclusive<f64>>,
+        disorder: DisorderSettings,
     },
     RandomRanged {
         range: RangeInclusive<i64>,
         amount: usize,
-        disorder: Option<RangeInclusive<f64>>,
+        disorder: DisorderSettings,
     },
     Arbitrary(String),
     Preset(usize),
@@ -36,12 +53,15 @@ where
     mistakes as f64 / total_pairs as f64
 }
 
-fn generate_with_disorder(disorder_range: RangeInclusive<f64>, mut numbers: Vec<i64>) -> Vec<i64> {
-    let middle = (disorder_range.start() + disorder_range.end()) / 2.;
+fn generate_with_disorder(disorder: &DisorderSettings, mut numbers: Vec<i64>) -> Vec<i64> {
+    let middle = (disorder.range.start() + disorder.range.end()) / 2.;
     if middle > 0.6666666666666666 {
         numbers.reverse();
     }
-    while !disorder_range.contains(&compute_disorder(&numbers)) {
+    if disorder.shuffle {
+        numbers.shuffle(&mut rand::rng());
+    }
+    while !disorder.range.contains(&compute_disorder(&numbers)) {
         let ra = rand::random_range(0..numbers.len());
         let rb = rand::random_range(0..numbers.len());
         numbers.swap(ra, rb);
@@ -54,13 +74,12 @@ impl NumberGeneration {
         match &self {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
             NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
-            NumberGeneration::Random { amount, disorder } => Ok(match disorder {
-                Some(d) => generate_with_disorder(d.clone(), (0..(*amount as i64)).collect()),
-                None => {
-                    let mut nums: Vec<_> = (0..(*amount as i64)).collect();
-                    nums.shuffle(&mut rand::rng());
-                    nums
-                }
+            NumberGeneration::Random { amount, disorder } => Ok(if disorder.enabled {
+                generate_with_disorder(disorder, (0..(*amount as i64)).collect())
+            } else {
+                let mut nums: Vec<_> = (0..(*amount as i64)).collect();
+                nums.shuffle(&mut rand::rng());
+                nums
             }),
             NumberGeneration::RandomRanged {
                 range,
@@ -71,14 +90,13 @@ impl NumberGeneration {
                 while map.len() < *amount {
                     map.insert(rand::random_range(range.clone()));
                 }
-                Ok(match disorder {
-                    Some(d) => {
-                        let mut vec: Vec<_> = map.into_iter().collect();
-                        vec.sort();
-                        generate_with_disorder(d.clone(), vec)
-                    }
-                    None => map.into_iter().collect(),
-                })
+                if disorder.enabled {
+                    let mut vec: Vec<_> = map.into_iter().collect();
+                    vec.sort();
+                    Ok(generate_with_disorder(disorder, vec))
+                } else {
+                    Ok(map.into_iter().collect())
+                }
             }
             NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
             NumberGeneration::Preset(i) => Ok(NUMBER_PRESETS[*i].1.to_vec()),
