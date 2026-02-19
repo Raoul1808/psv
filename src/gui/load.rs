@@ -34,6 +34,20 @@ enum NumberGeneration {
     Preset(usize),
 }
 
+fn compute_disorder(stack: &[u32]) -> f64 {
+    let mut mistakes = 0;
+    let mut total_pairs = 0;
+    for i in 0..(stack.len() - 1) {
+        for j in (i + 1)..(stack.len() - 1) {
+            total_pairs += 1;
+            if stack[i] > stack[j] {
+                mistakes += 1;
+            }
+        }
+    }
+    return mistakes as f64 / total_pairs as f64;
+}
+
 impl NumberGeneration {
     pub fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
         match &self {
@@ -153,6 +167,7 @@ pub struct LoadingOptions {
     source_opt: InstructionsSource,
     worker: Option<AsyncWorker>,
     gen_time: ExecutionTimeInfo,
+    disorder: Option<f64>,
     number_args: String,
 }
 
@@ -186,6 +201,7 @@ impl LoadingOptions {
             },
             worker: None,
             gen_time: ExecutionTimeInfo::None,
+            disorder: None,
             number_args: String::new(),
         }
     }
@@ -461,6 +477,7 @@ impl LoadingOptions {
                 match res {
                     Ok(res) => {
                         *sim = res;
+                        self.disorder = Some(compute_disorder(sim.stack_a()));
                         self.gen_time = if worker.token.is_cancelled() {
                             ExecutionTimeInfo::Killed(duration)
                         } else {
@@ -508,6 +525,7 @@ impl LoadingOptions {
                     *playing_sim = false;
                     *show_playback = false;
                     self.gen_time = ExecutionTimeInfo::None;
+                    self.disorder = None;
                 }
                 if ui.button("Copy numbers to clipboard").on_hover_text("The list of generated numbers will be collapsed into a single line that can be pasted as program arguments. Useful if you want to debug a random sequence that was just generated.").clicked() {
                     let copy = self.number_args.clone();
@@ -539,6 +557,9 @@ impl LoadingOptions {
                         ui.label(e);
                     }
                 }
+            }
+            if let Some(dis) = self.disorder {
+                ui.label(format!("Disorder: {:.2}%", dis * 100.));
             }
         });
     }
