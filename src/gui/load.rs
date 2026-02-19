@@ -45,7 +45,7 @@ fn compute_disorder(stack: &[u32]) -> f64 {
             }
         }
     }
-    return mistakes as f64 / total_pairs as f64;
+    mistakes as f64 / total_pairs as f64
 }
 
 impl NumberGeneration {
