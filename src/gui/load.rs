@@ -156,8 +156,8 @@ impl LoadingOptions {
             InstructionsSource::Executable { path, mode } => {
                 let path = path.as_ref().ok_or("No executable selected".to_string())?;
                 let numbers = gen_opt
-                    .get_numbers()
-                    .map_err(|err| format!("error while parsing numbers: {}", err))?;
+                    .get_numbers(token.clone())
+                    .map_err(|err| err.to_string())?;
                 let args: Vec<_> = numbers.iter().map(|n| n.to_string()).collect();
                 let mut cmd = Command::new(path);
                 if *mode != SortingStrategy::None {
@@ -191,18 +191,14 @@ impl LoadingOptions {
             }
             InstructionsSource::File(path) => {
                 let path = path.as_ref().ok_or("No file selected".to_string())?;
-                let numbers = gen_opt
-                    .get_numbers()
-                    .map_err(|err| format!("error while parsing numbers: {}", err))?;
+                let numbers = gen_opt.get_numbers(token).map_err(|err| err.to_string())?;
                 let instructions = fs::read_to_string(path)
                     .map_err(|err| format!("failed to read from file: {}", err))?;
                 (instructions, numbers)
             }
             InstructionsSource::Manual(instructions) => (
                 instructions.clone(),
-                gen_opt
-                    .get_numbers()
-                    .map_err(|err| format!("error while parsing numbers: {}", err))?,
+                gen_opt.get_numbers(token).map_err(|err| err.to_string())?,
             ),
         };
         Ok((instructions, numbers))

@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Display, num::ParseIntError, ops::RangeInclusive};
 
 use rand::seq::SliceRandom;
+use tokio_util::sync::CancellationToken;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct DisorderSettings {
@@ -36,6 +37,15 @@ pub enum NumberGeneration {
     Preset(usize),
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum GenerationError {
+    #[error("operation cancelled")]
+    Cancelled,
+
+    #[error("failed to parse number: {0}")]
+    Parse(ParseIntError),
+}
+
 pub fn compute_disorder<T>(stack: &[T]) -> f64
 where
     T: Ord,
@@ -53,7 +63,11 @@ where
     mistakes as f64 / total_pairs as f64
 }
 
-fn generate_with_disorder(disorder: &DisorderSettings, mut numbers: Vec<i64>) -> Vec<i64> {
+fn generate_with_disorder_cancellable(
+    disorder: &DisorderSettings,
+    mut numbers: Vec<i64>,
+    token: CancellationToken,
+) -> Result<Vec<i64>, GenerationError> {
     let middle = (disorder.range.start() + disorder.range.end()) / 2.;
     if middle > 0.6666666666666666 {
         numbers.reverse();
@@ -65,22 +79,31 @@ fn generate_with_disorder(disorder: &DisorderSettings, mut numbers: Vec<i64>) ->
         let ra = rand::random_range(0..numbers.len());
         let rb = rand::random_range(0..numbers.len());
         numbers.swap(ra, rb);
+        if token.is_cancelled() {
+            return Err(GenerationError::Cancelled);
+        }
     }
-    numbers
+    Ok(numbers)
 }
 
 impl NumberGeneration {
-    pub fn get_numbers(&self) -> Result<Vec<i64>, ParseIntError> {
+    pub fn get_numbers(&self, token: CancellationToken) -> Result<Vec<i64>, GenerationError> {
         match &self {
             NumberGeneration::Ordered(r) => Ok((0..(*r as i64)).collect()),
             NumberGeneration::ReverseOrdered(r) => Ok((0..(*r as i64)).rev().collect()),
-            NumberGeneration::Random { amount, disorder } => Ok(if disorder.enabled {
-                generate_with_disorder(disorder, (0..(*amount as i64)).collect())
-            } else {
-                let mut nums: Vec<_> = (0..(*amount as i64)).collect();
-                nums.shuffle(&mut rand::rng());
-                nums
-            }),
+            NumberGeneration::Random { amount, disorder } => {
+                if disorder.enabled {
+                    generate_with_disorder_cancellable(
+                        disorder,
+                        (0..(*amount as i64)).collect(),
+                        token,
+                    )
+                } else {
+                    let mut nums: Vec<_> = (0..(*amount as i64)).collect();
+                    nums.shuffle(&mut rand::rng());
+                    Ok(nums)
+                }
+            }
             NumberGeneration::RandomRanged {
                 range,
                 amount,
@@ -93,12 +116,15 @@ impl NumberGeneration {
                 if disorder.enabled {
                     let mut vec: Vec<_> = map.into_iter().collect();
                     vec.sort();
-                    Ok(generate_with_disorder(disorder, vec))
+                    generate_with_disorder_cancellable(disorder, vec, token)
                 } else {
                     Ok(map.into_iter().collect())
                 }
             }
-            NumberGeneration::Arbitrary(s) => s.split_whitespace().map(|s| s.parse()).collect(),
+            NumberGeneration::Arbitrary(s) => s
+                .split_whitespace()
+                .map(|s| s.parse().map_err(GenerationError::Parse))
+                .collect(),
             NumberGeneration::Preset(i) => Ok(NUMBER_PRESETS[*i].1.to_vec()),
         }
     }
