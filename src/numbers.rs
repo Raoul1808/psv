@@ -1,5 +1,7 @@
 use std::{collections::HashSet, fmt::Display, num::ParseIntError, ops::RangeInclusive};
 
+use egui::{Color32, DragValue, Ui, Widget};
+use egui_double_slider::DoubleSlider;
 use rand::seq::SliceRandom;
 use tokio_util::sync::CancellationToken;
 
@@ -18,6 +20,36 @@ impl Default for DisorderSettings {
             shuffle: true,
             min_swaps: 2000,
             range: 0.2..=0.8,
+        }
+    }
+}
+
+impl DisorderSettings {
+    pub fn ui(&mut self, ui: &mut Ui, amount: usize) {
+        ui.checkbox(&mut self.enabled, "Generate with target disorder");
+        if self.enabled {
+            ui.checkbox(&mut self.shuffle, "Shuffle before matching disorder");
+            let (mut start, mut end) = (*self.range.start(), *self.range.end());
+            ui.horizontal(|ui| {
+                DragValue::new(&mut self.min_swaps).ui(ui);
+                ui.label("Minimum amount of swaps");
+            });
+            ui.label("Target Disorder:");
+            ui.horizontal(|ui| {
+                DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
+                    .separation_distance(if amount > 1 { 1. / amount as f64 } else { 1.0 })
+                    .ui(ui);
+                ui.label(format!(
+                    "Min: {:.2}%, Max: {:.2}%",
+                    start * 100.,
+                    end * 100.
+                ));
+            });
+            ui.scope(|ui| {
+                ui.style_mut().visuals.override_text_color = Some(Color32::from_rgb(192, 192, 0));
+                ui.label("⚠ Depending on the disorder settings (and bad RNG), numbers may take some time to generate, or could even never generate. If so, press the Kill button and revise your settings.");
+                        });
+            self.range = start..=end;
         }
     }
 }

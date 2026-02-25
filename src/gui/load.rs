@@ -10,7 +10,6 @@ use std::{
 };
 
 use egui::{ComboBox, Context, DragValue, ScrollArea, Widget, Window};
-use egui_double_slider::DoubleSlider;
 use tokio::sync::oneshot::{Receiver, Sender, channel};
 use tokio_util::sync::CancellationToken;
 
@@ -311,23 +310,7 @@ impl LoadingOptions {
                         DragValue::new(amount).ui(ui);
                         ui.label("Numbers to Generate");
                     });
-                    ui.checkbox(&mut disorder.enabled, "Generate with target disorder");
-                    if disorder.enabled {
-                        ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
-                        let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
-                        ui.horizontal(|ui| {
-                            DragValue::new(&mut disorder.min_swaps).ui(ui);
-                            ui.label("Minimum amount of swaps");
-                        });
-                        ui.label("Target Disorder:");
-                        ui.horizontal(|ui| {
-                            DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
-                                .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
-                                .ui(ui);
-                            ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
-                        });
-                        disorder.range = start..=end;
-                    }
+                    disorder.ui(ui, *amount);
                 }
                 NumberGeneration::RandomRanged { range, amount, disorder } => {
                     ui.horizontal(|ui| {
@@ -350,23 +333,7 @@ impl LoadingOptions {
                         *range = start..=end;
                         *amount = ((end - start + 1) as usize).min(*amount);
                     });
-                    ui.checkbox(&mut disorder.enabled, "Generate with target disorder");
-                    if disorder.enabled {
-                        ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
-                        let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
-                        ui.horizontal(|ui| {
-                            DragValue::new(&mut disorder.min_swaps).ui(ui);
-                            ui.label("Minimum amount of swaps");
-                        });
-                        ui.label("Target Disorder:");
-                        ui.horizontal(|ui| {
-                            DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
-                                .separation_distance(if *amount > 1 { 1. / *amount as f64 } else { 1.0 })
-                                .ui(ui);
-                            ui.label(format!("Min: {:.2}%, Max: {:.2}%", start * 100., end * 100.));
-                        });
-                        disorder.range = start..=end;
-                    }
+                    disorder.ui(ui, *amount);
                 }
                 NumberGeneration::Arbitrary(s) => {
                     ui.horizontal(|ui| {
