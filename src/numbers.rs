@@ -7,6 +7,7 @@ use tokio_util::sync::CancellationToken;
 pub struct DisorderSettings {
     pub enabled: bool,
     pub shuffle: bool,
+    pub min_swaps: usize,
     pub range: RangeInclusive<f64>,
 }
 
@@ -15,6 +16,7 @@ impl Default for DisorderSettings {
         Self {
             enabled: false,
             shuffle: true,
+            min_swaps: 2000,
             range: 0.2..=0.8,
         }
     }
@@ -75,13 +77,15 @@ fn generate_with_disorder_cancellable(
     if disorder.shuffle {
         numbers.shuffle(&mut rand::rng());
     }
-    while !disorder.range.contains(&compute_disorder(&numbers)) {
+    let mut swaps = 0;
+    while !disorder.range.contains(&compute_disorder(&numbers)) || swaps < disorder.min_swaps {
         let ra = rand::random_range(0..numbers.len());
         let rb = rand::random_range(0..numbers.len());
         numbers.swap(ra, rb);
         if token.is_cancelled() {
             return Err(GenerationError::Cancelled);
         }
+        swaps += 1;
     }
     Ok(numbers)
 }

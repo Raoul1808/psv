@@ -315,6 +315,10 @@ impl LoadingOptions {
                     if disorder.enabled {
                         ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
                         let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
+                        ui.horizontal(|ui| {
+                            DragValue::new(&mut disorder.min_swaps).ui(ui);
+                            ui.label("Minimum amount of swaps");
+                        });
                         ui.label("Target Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
@@ -350,6 +354,10 @@ impl LoadingOptions {
                     if disorder.enabled {
                         ui.checkbox(&mut disorder.shuffle, "Shuffle before matching disorder");
                         let (mut start, mut end) = (*disorder.range.start(), *disorder.range.end());
+                        ui.horizontal(|ui| {
+                            DragValue::new(&mut disorder.min_swaps).ui(ui);
+                            ui.label("Minimum amount of swaps");
+                        });
                         ui.label("Target Disorder:");
                         ui.horizontal(|ui| {
                             DoubleSlider::new(&mut start, &mut end, 0.0..=1.0)
