@@ -143,8 +143,12 @@ impl SortView {
 
     pub fn egui_menu(&mut self, ui: &egui::Context) {
         ui.style_mut(|ui| {
-            ui.visuals.window_fill =
-                egui::Color32::from_rgba_unmultiplied(0x1b, 0x1b, 0x1b, self.visual.opacity());
+            let dark = ui.visuals.dark_mode;
+            ui.visuals.window_fill = if dark {
+                egui::Color32::from_rgba_unmultiplied(0x1b, 0x1b, 0x1b, self.visual.opacity())
+            } else {
+                egui::Color32::from_rgba_unmultiplied(0xf8, 0xf8, 0xf8, self.visual.opacity())
+            };
         });
         egui::Window::new("push_swap visualizer")
             .resizable(true)

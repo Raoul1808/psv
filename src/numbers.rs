@@ -46,9 +46,14 @@ impl DisorderSettings {
                 ));
             });
             ui.scope(|ui| {
-                ui.style_mut().visuals.override_text_color = Some(Color32::from_rgb(192, 192, 0));
+                let dark = ui.style().visuals.dark_mode;
+                ui.style_mut().visuals.override_text_color = Some(if dark {
+                    Color32::from_rgb(192, 192, 0)
+                } else {
+                    Color32::from_rgb(140, 140, 0)
+                });
                 ui.label("⚠ Depending on the disorder settings (and bad RNG), numbers may take some time to generate, or could even never generate. If so, press the Kill button and revise your settings.");
-                        });
+            });
             self.range = start..=end;
         }
     }
