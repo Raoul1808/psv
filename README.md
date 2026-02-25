@@ -6,6 +6,8 @@
 Yet another *push\_swap* visualizer written in Rust. *psv* stands for
 **p**ush\_**s**wap **v**isualizer.
 
+![Screenshot](/img/program.png)
+
 ## Context
 
 *push\_swap* is a 42 project where the objective is to create a program that
