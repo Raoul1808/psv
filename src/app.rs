@@ -30,6 +30,13 @@ impl eframe::App for App {
                         ui.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
+                ui.menu_button("Help", |ui| {
+                    ui.add_enabled(false, egui::Button::new("TODO: add button"));
+                    ui.separator();
+                    if ui.button("About psv").clicked() {
+                        println!("About modal!!");
+                    }
+                });
             });
         });
 
