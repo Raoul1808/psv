@@ -88,15 +88,11 @@ impl SortView {
                     !self.playing_sim
                 };
             }
-            Code(KeyCode::ArrowLeft) => {
-                if !self.playing_sim {
-                    self.regenerate_render_data = self.sim.undo();
-                }
+            Code(KeyCode::ArrowLeft) if !self.playing_sim => {
+                self.regenerate_render_data = self.sim.undo();
             }
-            Code(KeyCode::ArrowRight) => {
-                if !self.playing_sim {
-                    self.regenerate_render_data = self.sim.step();
-                }
+            Code(KeyCode::ArrowRight) if !self.playing_sim => {
+                self.regenerate_render_data = self.sim.step();
             }
             _ => {}
         }

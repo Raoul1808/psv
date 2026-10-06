@@ -124,13 +124,13 @@ pub struct PushSwapSim {
 
 fn normalized_vec(numbers: &[i64]) -> Vec<u32> {
     let mut numbers: Vec<_> = numbers.iter().enumerate().collect();
-    numbers.sort_by(|(_, i1), (_, i2)| i1.cmp(i2));
+    numbers.sort_by_key(|(_, i)| *i);
     let mut numbers: Vec<_> = numbers
         .into_iter()
         .enumerate()
         .map(|(i, (ii, _))| (i, ii))
         .collect();
-    numbers.sort_by(|(_, i1), (_, i2)| i1.cmp(i2));
+    numbers.sort_by_key(|(_, i)| *i);
     numbers.into_iter().map(|(i, _)| i as u32).collect()
 }
 
