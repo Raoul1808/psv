@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::VecDeque, ops::Not, str::FromStr};
 
 use crate::sim::error::PushSwapError;
 
@@ -15,6 +15,87 @@ pub enum PushSwapInstruction {
     ReverseRotateA,
     ReverseRotateB,
     ReverseRotateBoth,
+}
+
+impl PushSwapInstruction {
+    pub fn run<T>(self, sa: &mut VecDeque<T>, sb: &mut VecDeque<T>) {
+        use PushSwapInstruction::*;
+        match self {
+            SwapA => {
+                if sa.len() >= 2 {
+                    sa.swap(0, 1);
+                }
+            }
+            SwapB => {
+                if sb.len() >= 2 {
+                    sb.swap(0, 1);
+                }
+            }
+            SwapBoth => {
+                SwapA.run(sa, sb);
+                SwapB.run(sa, sb);
+            }
+            PushA => {
+                if let Some(t) = sb.pop_front() {
+                    sa.push_front(t);
+                }
+            }
+            PushB => {
+                if let Some(t) = sa.pop_front() {
+                    sb.push_front(t);
+                }
+            }
+            RotateA => {
+                if !sa.is_empty() {
+                    sa.rotate_left(1);
+                }
+            }
+            RotateB => {
+                if !sb.is_empty() {
+                    sb.rotate_left(1);
+                }
+            }
+            RotateBoth => {
+                RotateA.run(sa, sb);
+                RotateB.run(sa, sb);
+            }
+            ReverseRotateA => {
+                if !sa.is_empty() {
+                    sa.rotate_right(1);
+                }
+            }
+            ReverseRotateB => {
+                if !sb.is_empty() {
+                    sb.rotate_right(1);
+                }
+            }
+            ReverseRotateBoth => {
+                ReverseRotateA.run(sa, sb);
+                ReverseRotateB.run(sa, sb);
+            }
+        }
+    }
+}
+
+impl Not for PushSwapInstruction {
+    type Output = PushSwapInstruction;
+
+    fn not(self) -> Self::Output {
+        use PushSwapInstruction::*;
+        match self {
+            SwapA => SwapA,
+            SwapB => SwapB,
+            SwapBoth => SwapBoth,
+            PushA => PushB,
+            PushB => PushA,
+            RotateA => ReverseRotateA,
+            RotateB => ReverseRotateB,
+            RotateBoth => ReverseRotateBoth,
+            ReverseRotateA => RotateA,
+            ReverseRotateB => RotateB,
+            ReverseRotateBoth => RotateBoth,
+        }
+    }
 }
 
 impl FromStr for PushSwapInstruction {
@@ -42,6 +123,8 @@ impl FromStr for PushSwapInstruction {
 
 #[cfg(test)]
 mod test {
+    use std::collections::VecDeque;
+
     use crate::sim::{error::PushSwapError, instructions::PushSwapInstruction};
 
     #[test]
@@ -80,5 +163,106 @@ mod test {
         let err = res.unwrap_err();
         let expected = PushSwapError::InvalidInstruction("pp".to_string());
         assert_eq!(err, expected);
+    }
+
+    macro_rules! assert_stack {
+        ($stack:expr, $nums:expr) => {
+            $stack.make_contiguous();
+            let slc = $stack.as_slices().0;
+            assert_eq!(slc, $nums.as_slice());
+        };
+    }
+
+    #[test]
+    fn run_instructions() {
+        let mut stack_a = VecDeque::from([1, 2, 3, 4]);
+        let mut stack_b = VecDeque::new();
+
+        let sa = &mut stack_a;
+        let sb = &mut stack_b;
+
+        use PushSwapInstruction::*;
+
+        PushB.run(sa, sb);
+        assert_stack!(sa, [2, 3, 4]);
+        assert_stack!(sb, [1]);
+
+        PushB.run(sa, sb);
+        assert_stack!(sa, [3, 4]);
+        assert_stack!(sb, [2, 1]);
+
+        SwapA.run(sa, sb);
+        assert_stack!(sa, [4, 3]);
+
+        SwapB.run(sa, sb);
+        assert_stack!(sb, [1, 2]);
+
+        SwapBoth.run(sa, sb);
+        assert_stack!(sa, [3, 4]);
+        assert_stack!(sb, [2, 1]);
+
+        PushA.run(sa, sb);
+        assert_stack!(sa, [2, 3, 4]);
+        assert_stack!(sb, [1]);
+
+        SwapA.run(sa, sb);
+        assert_stack!(sa, [3, 2, 4]);
+
+        RotateA.run(sa, sb);
+        assert_stack!(sa, [2, 4, 3]);
+
+        ReverseRotateA.run(sa, sb);
+        assert_stack!(sa, [3, 2, 4]);
+
+        PushB.run(sa, sb);
+        PushB.run(sa, sb);
+        assert_stack!(sb, [2, 3, 1]);
+
+        RotateB.run(sa, sb);
+        assert_stack!(sb, [3, 1, 2]);
+
+        ReverseRotateB.run(sa, sb);
+        assert_stack!(sb, [2, 3, 1]);
+
+        PushA.run(sa, sb);
+        assert_stack!(sa, [2, 4]);
+        assert_stack!(sb, [3, 1]);
+
+        RotateBoth.run(sa, sb);
+        assert_stack!(sa, [4, 2]);
+        assert_stack!(sb, [1, 3]);
+
+        ReverseRotateBoth.run(sa, sb);
+        assert_stack!(sa, [2, 4]);
+        assert_stack!(sb, [3, 1]);
+    }
+
+    #[test]
+    fn undo_instructions() {
+        let mut stack_a = VecDeque::from([1, 2, 3, 4]);
+        let mut stack_b = VecDeque::new();
+
+        let sa = &mut stack_a;
+        let sb = &mut stack_b;
+
+        use PushSwapInstruction::*;
+
+        PushB.run(sa, sb);
+        PushB.run(sa, sb);
+        SwapA.run(sa, sb);
+        PushB.run(sa, sb);
+        ReverseRotateB.run(sa, sb);
+
+        assert_stack!(sa, [3]);
+        assert_stack!(sb, [1, 4, 2]);
+
+        (!ReverseRotateB).run(sa, sb);
+        (!PushB).run(sa, sb);
+        (!SwapA).run(sa, sb);
+        (!PushB).run(sa, sb);
+        (!PushB).run(sa, sb);
+
+        assert_stack!(sa, [1, 2, 3, 4]);
+        assert_stack!(sb, []);
     }
 }
