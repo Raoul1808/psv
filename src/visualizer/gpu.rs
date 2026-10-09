@@ -1,34 +1,115 @@
-use std::num::NonZeroU64;
-
+use bytemuck::offset_of;
 use eframe::{
     egui, egui_wgpu,
-    wgpu::{self, util::DeviceExt},
+    wgpu::{self, VertexAttribute, VertexBufferLayout, util::DeviceExt},
 };
+
+use crate::sim::Sim;
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
+}
+
+impl Vertex {
+    pub fn array_stride() -> wgpu::BufferAddress {
+        size_of::<Vertex>() as _
+    }
+
+    pub fn step_mode() -> wgpu::VertexStepMode {
+        wgpu::VertexStepMode::Vertex
+    }
+
+    pub fn vertex_attributes() -> [VertexAttribute; 2] {
+        [
+            wgpu::VertexAttribute {
+                offset: offset_of!(Vertex, position) as wgpu::BufferAddress,
+                shader_location: 0,
+                format: wgpu::VertexFormat::Float32x3,
+            },
+            wgpu::VertexAttribute {
+                offset: offset_of!(Vertex, color) as wgpu::BufferAddress,
+                shader_location: 1,
+                format: wgpu::VertexFormat::Float32x4,
+            },
+        ]
+    }
+}
+
+unsafe impl bytemuck::Zeroable for Vertex {}
+unsafe impl bytemuck::Pod for Vertex {}
+
+pub const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [-2., -2., -2.],
+        color: [0., 0., 0., 1.],
+    },
+    Vertex {
+        position: [-2., -3., -2.],
+        color: [0., 0., 0., 1.],
+    },
+    Vertex {
+        position: [-3., -3., -2.],
+        color: [0., 0., 0., 1.],
+    },
+];
+pub const INDICES: &[u32] = &[0, 1, 2];
 
 struct VisualizerRenderResources {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
     uniform_buffer: wgpu::Buffer,
 }
 
 impl VisualizerRenderResources {
-    fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
+    fn prepare(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        vertices: Option<&[Vertex]>,
+        indices: Option<&[u32]>,
+        mat: [[f32; 4]; 4],
+    ) {
+        if let Some(vertices) = vertices {
+            self.vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("visualizer vertices"),
+                contents: bytemuck::cast_slice(vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+        }
+        if let Some(indices) = indices {
+            self.index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("visualizer indices"),
+                contents: bytemuck::cast_slice(indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+            self.num_indices = indices.len() as u32;
+        }
         queue.write_buffer(
             &self.uniform_buffer,
             0,
-            bytemuck::cast_slice(&[angle, 0.0, 0.0, 0.0]),
+            bytemuck::cast_slice(mat.as_slice()),
         );
     }
 
     fn paint(&self, render_pass: &mut wgpu::RenderPass<'_>) {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
 }
 
 struct VisualizerCallback {
-    angle: f32,
+    vertices: Option<Vec<Vertex>>,
+    indices: Option<Vec<u32>>,
+    mat: [[f32; 4]; 4],
 }
 
 impl egui_wgpu::CallbackTrait for VisualizerCallback {
@@ -40,8 +121,14 @@ impl egui_wgpu::CallbackTrait for VisualizerCallback {
         _egui_encoder: &mut wgpu::CommandEncoder,
         callback_resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
-        let resources: &VisualizerRenderResources = callback_resources.get().unwrap();
-        resources.prepare(device, queue, self.angle);
+        let resources: &mut VisualizerRenderResources = callback_resources.get_mut().unwrap();
+        resources.prepare(
+            device,
+            queue,
+            self.vertices.as_deref(),
+            self.indices.as_deref(),
+            self.mat,
+        );
         Vec::new()
     }
 
@@ -57,7 +144,9 @@ impl egui_wgpu::CallbackTrait for VisualizerCallback {
 }
 
 pub struct GpuVisualizer {
-    angle: f32,
+    mat: [[f32; 4]; 4],
+    vertices: Option<Vec<Vertex>>,
+    indices: Option<Vec<u32>>,
 }
 
 impl GpuVisualizer {
@@ -79,7 +168,7 @@ impl GpuVisualizer {
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    min_binding_size: NonZeroU64::new(16),
+                    min_binding_size: None,
                 },
                 count: None,
             }],
@@ -97,7 +186,11 @@ impl GpuVisualizer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: None,
-                buffers: &[],
+                buffers: &[Some(wgpu::VertexBufferLayout {
+                    array_stride: Vertex::array_stride(),
+                    step_mode: Vertex::step_mode(),
+                    attributes: Vertex::vertex_attributes().as_slice(),
+                })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -113,9 +206,22 @@ impl GpuVisualizer {
             cache: None,
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("visualizer vertices"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("visualizer indices"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = INDICES.len() as u32;
+
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("visualizer"),
-            contents: bytemuck::cast_slice(&[0.0_f32; 4]),
+            contents: bytemuck::cast_slice(&[0.0_f32; 16]),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
 
@@ -135,19 +241,114 @@ impl GpuVisualizer {
             .insert(VisualizerRenderResources {
                 pipeline,
                 bind_group,
+                vertex_buffer,
+                index_buffer,
+                num_indices,
                 uniform_buffer,
             });
-        Self { angle: 0. }
+        Self {
+            mat: ortho(0., 1., 1., 0., -1., 1.),
+            vertices: None,
+            indices: None,
+        }
+    }
+
+    pub fn update(&mut self, sim: &Sim) {
+        let (stack_a, stack_b) = sim.as_slices();
+        let len = stack_a.len() + stack_b.len();
+        self.mat = ortho(0., len as f32 * 2., len as f32, 0., -1., 1.);
+
+        let mut vertices = vec![];
+        let mut indices = vec![];
+        let mut next_index = 0;
+        for (i, num) in stack_a.iter().enumerate() {
+            let i = i as f32;
+            let num = num.normalized as f32;
+            let color = [1.0, 1.0, 1.0, 1.0];
+            vertices.push(Vertex {
+                position: [0.0, i, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [num + 1.0, i, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [num + 1.0, i + 1.0, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [0.0, i + 1.0, 0.0],
+                color,
+            });
+            indices.extend_from_slice(&[
+                next_index,
+                next_index + 1,
+                next_index + 2,
+                next_index + 2,
+                next_index + 3,
+                next_index,
+            ]);
+            next_index += 4;
+        }
+        for (i, num) in stack_b.iter().enumerate() {
+            let len = len as f32;
+            let i = i as f32;
+            let num = num.normalized as f32;
+            let color = [1.0, 1.0, 1.0, 1.0];
+            vertices.push(Vertex {
+                position: [len, i, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [len + num + 1.0, i, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [len + num + 1.0, i + 1.0, 0.0],
+                color,
+            });
+            vertices.push(Vertex {
+                position: [len, i + 1.0, 0.0],
+                color,
+            });
+            indices.extend_from_slice(&[
+                next_index,
+                next_index + 1,
+                next_index + 2,
+                next_index + 2,
+                next_index + 3,
+                next_index,
+            ]);
+            next_index += 4;
+        }
+        self.vertices = Some(vertices);
+        self.indices = Some(indices);
     }
 
     pub fn paint(&mut self, ui: &mut egui::Ui) {
         let size = ui.available_size();
-        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
+        let (rect, _response) = ui.allocate_exact_size(size, egui::Sense::drag());
 
-        self.angle += response.drag_motion().x * 0.01;
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            VisualizerCallback { angle: self.angle },
+            VisualizerCallback {
+                mat: self.mat,
+                vertices: self.vertices.take(),
+                indices: self.indices.take(),
+            },
         ));
     }
+}
+
+fn ortho(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
+    let tx = -(right + left) / (right - left);
+    let ty = -(top + bottom) / (top - bottom);
+    let tz = -(far + near) / (far - near);
+    [
+        [2. / (right - left), 0., 0., 0.],
+        [0., 2. / (top - bottom), 0., 0.],
+        [0., 0., -2. / (far - near), 0.],
+        [tx, ty, tz, 1.],
+    ]
 }

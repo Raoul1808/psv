@@ -4,8 +4,8 @@ use crate::sim::{error::PushSwapError, instructions::PushSwapInstruction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NumPair {
-    orig: i32,
-    normalized: i32,
+    pub orig: i32,
+    pub normalized: i32,
 }
 
 fn normalize(nums: &[i32]) -> Vec<NumPair> {
