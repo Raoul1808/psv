@@ -3,6 +3,8 @@ use std::{fmt::Display, path::PathBuf};
 use eframe::egui;
 use egui_file_dialog::FileDialog;
 
+use crate::visualizer::Visualizer;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppMode {
     Visualize,
@@ -22,14 +24,16 @@ pub struct App {
     push_swap_path: Option<PathBuf>,
     file_dialog: FileDialog,
     app_mode: AppMode,
+    visualizer: Visualizer,
 }
 
 impl App {
-    pub fn new(_cc: &eframe::CreationContext) -> Self {
+    pub fn new(cc: &eframe::CreationContext) -> Self {
         Self {
             push_swap_path: None,
             file_dialog: FileDialog::new(),
             app_mode: AppMode::Visualize,
+            visualizer: Visualizer::new(cc),
         }
     }
 }
@@ -73,18 +77,14 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(ui, |ui| {
-            ui.label(format!(
-                "push_swap executable path: {}",
-                self.push_swap_path
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or("None".into())
-            ));
-            if ui.button("Select").clicked() {
-                self.file_dialog.pick_file();
+        match self.app_mode {
+            AppMode::Visualize => {
+                self.visualizer.ui(ui);
             }
-        });
+            AppMode::Benchmark => {
+                ui.label("todo: implement benchmarking ui");
+            }
+        }
 
         self.file_dialog.update(ui);
         if let Some(path) = self.file_dialog.take_picked() {

@@ -9,6 +9,7 @@ strip = true
 lto = true
 
 [dependencies]
-eframe = { version = "0.36.2", features = ["persistence"] }
+bytemuck = "1.25.2"
+eframe = { version = "0.36.2", features = ["persistence", "wgpu"] }
 egui-file-dialog = "0.15.0"
 thiserror = "2.0.21"
