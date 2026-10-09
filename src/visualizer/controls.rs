@@ -4,7 +4,7 @@ use egui_alignments::center_horizontal;
 use crate::sim::Sim;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PlayState {
+pub enum PlayState {
     Stopped,
     PlayingForward,
     PlayingBackward,
@@ -25,6 +25,10 @@ impl Controls {
 
     pub fn need_redraw(&self) -> bool {
         self.need_redraw
+    }
+
+    pub fn play_state(&self) -> PlayState {
+        self.play_state
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, sim: &mut Sim) {
