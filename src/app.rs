@@ -1,11 +1,27 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 use eframe::egui;
 use egui_file_dialog::FileDialog;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum AppMode {
+    Visualize,
+    Benchmark,
+}
+
+impl Display for AppMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppMode::Visualize => write!(f, "Visualize"),
+            AppMode::Benchmark => write!(f, "Benchmark"),
+        }
+    }
+}
+
 pub struct App {
     push_swap_path: Option<PathBuf>,
     file_dialog: FileDialog,
+    app_mode: AppMode,
 }
 
 impl App {
@@ -13,6 +29,7 @@ impl App {
         Self {
             push_swap_path: None,
             file_dialog: FileDialog::new(),
+            app_mode: AppMode::Visualize,
         }
     }
 }
@@ -36,6 +53,22 @@ impl eframe::App for App {
                     if ui.button("About psv").clicked() {
                         println!("About modal!!");
                     }
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                    egui::ComboBox::new("app_mode", "App Mode:")
+                        .selected_text(self.app_mode.to_string())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.app_mode,
+                                AppMode::Visualize,
+                                AppMode::Visualize.to_string(),
+                            );
+                            ui.selectable_value(
+                                &mut self.app_mode,
+                                AppMode::Benchmark,
+                                AppMode::Benchmark.to_string(),
+                            );
+                        });
                 });
             });
         });
