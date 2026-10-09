@@ -75,6 +75,18 @@ impl Sim {
         true
     }
 
+    pub fn skip_to(&mut self, counter: usize) -> bool {
+        let mut changed = false;
+        let counter = counter.clamp(0, self.instructions.len());
+        while self.program_counter < counter {
+            changed |= self.step();
+        }
+        while self.program_counter > counter {
+            changed |= self.undo();
+        }
+        changed
+    }
+
     pub fn make_contiguous(&mut self) {
         self.stack_a.make_contiguous();
         self.stack_b.make_contiguous();
@@ -90,6 +102,10 @@ impl Sim {
 
     pub fn program_counter(&self) -> usize {
         self.program_counter
+    }
+
+    pub fn instructions(&self) -> &[PushSwapInstruction] {
+        &self.instructions
     }
 }
 
