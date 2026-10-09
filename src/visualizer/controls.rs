@@ -3,13 +3,24 @@ use egui_alignments::center_horizontal;
 
 use crate::sim::Sim;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PlayState {
+    Stopped,
+    PlayingForward,
+    PlayingBackward,
+}
+
 pub struct Controls {
     need_redraw: bool,
+    play_state: PlayState,
 }
 
 impl Controls {
     pub fn new() -> Self {
-        Controls { need_redraw: false }
+        Controls {
+            need_redraw: false,
+            play_state: PlayState::Stopped,
+        }
     }
 
     pub fn need_redraw(&self) -> bool {
@@ -52,12 +63,32 @@ impl Controls {
                 let program_counter = sim.program_counter();
                 let instructions_len = sim.instructions().len();
                 let start_cond = program_counter > 0;
+                let fwd_cond = self.play_state == PlayState::PlayingForward;
+                let bwd_cond = self.play_state == PlayState::PlayingBackward;
                 let end_cond = program_counter < instructions_len;
                 if ui.add_enabled(start_cond, egui::Button::new("⏮")).clicked() {
                     self.need_redraw |= sim.skip_to(0);
                 }
                 if ui.add_enabled(start_cond, egui::Button::new("⏴")).clicked() {
                     self.need_redraw |= sim.undo();
+                }
+                if bwd_cond {
+                    if ui.button("■").clicked() {
+                        self.play_state = PlayState::Stopped;
+                    }
+                } else {
+                    if ui.button("◀").clicked() {
+                        self.play_state = PlayState::PlayingBackward;
+                    }
+                }
+                if fwd_cond {
+                    if ui.button("■").clicked() {
+                        self.play_state = PlayState::Stopped;
+                    }
+                } else {
+                    if ui.button("▶").clicked() {
+                        self.play_state = PlayState::PlayingForward;
+                    }
                 }
                 if ui.add_enabled(end_cond, egui::Button::new("⏵")).clicked() {
                     self.need_redraw |= sim.step();
