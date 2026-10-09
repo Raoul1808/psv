@@ -1,7 +1,7 @@
 use bytemuck::offset_of;
 use eframe::{
     egui, egui_wgpu,
-    wgpu::{self, VertexAttribute, VertexBufferLayout, util::DeviceExt},
+    wgpu::{self, VertexAttribute, util::DeviceExt},
 };
 
 use crate::sim::Sim;
