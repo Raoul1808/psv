@@ -1,6 +1,7 @@
 use crate::app::App;
 
 mod app;
+mod sim;
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions::default();
