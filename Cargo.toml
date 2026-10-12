@@ -12,5 +12,7 @@ lto = true
 bytemuck = "1.25.2"
 eframe = { version = "0.36.2", features = ["persistence", "wgpu"] }
 egui_alignments = "0.3.9"
-egui-file-dialog = "0.15.0"
+rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
 thiserror = "2.0.21"

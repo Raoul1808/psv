@@ -25,6 +25,7 @@ error.log
 
 # psv config file
 .psvconf.json
+.psv2conf.json
 
 # target symlink
 target

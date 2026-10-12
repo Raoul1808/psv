@@ -1,9 +1,9 @@
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
 
-use eframe::egui;
-use egui_file_dialog::FileDialog;
+use eframe::egui::{self, Widget};
+use egui_alignments::center_horizontal;
 
-use crate::visualizer::Visualizer;
+use crate::{config::Config, visualizer::Visualizer};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppMode {
@@ -22,30 +22,59 @@ impl Display for AppMode {
 
 pub struct App {
     // TODO: maybe remove
-    push_swap_path: Option<PathBuf>,
-    file_dialog: FileDialog,
     app_mode: AppMode,
     visualizer: Visualizer,
+    config: Config,
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext) -> Self {
+    pub fn new(cc: &eframe::CreationContext, config: Config) -> Self {
         Self {
-            push_swap_path: None,
-            file_dialog: FileDialog::new(),
+            config,
             app_mode: AppMode::Visualize,
             visualizer: Visualizer::new(cc),
         }
     }
-}
 
-impl eframe::App for App {
-    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+    fn select_executable(&mut self) {
+        let file = rfd::FileDialog::new().pick_file();
+        if let Some(file) = file {
+            self.visualizer.update_path(file.clone());
+            self.config.push_swap_path = Some(file);
+            let res = self.config.save();
+            if let Err(e) = res {
+                eprintln!("error while saving config: {e}");
+            }
+        }
+    }
+
+    fn first_time_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Modal::new("missing_path".into()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                center_horizontal(ui, |ui| ui.heading("Setup"));
+            });
+            ui.separator();
+            ui.label("This program requires a push_swap executable to run!");
+            ui.label("Hint: you can change this later with File -> Select push_swap executable");
+            ui.add_space(7.);
+            center_horizontal(ui, |ui| {
+                if egui::Button::new("Select push_swap executable")
+                    .min_size([ui.available_width(), 0.0].into())
+                    .ui(ui)
+                    .clicked()
+                {
+                    self.select_executable();
+                }
+            });
+        });
+    }
+
+    fn app_ui(&mut self, ui: &mut egui::Ui) {
         egui::Panel::top("menu_bar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Select push_swap executable").clicked() {
-                        self.file_dialog.pick_file();
+                        self.select_executable();
                     }
                     ui.separator();
                     if ui.button("Quit").clicked() {
@@ -86,11 +115,16 @@ impl eframe::App for App {
                 ui.label("todo: implement benchmarking ui");
             }
         }
+    }
+}
 
-        self.file_dialog.update(ui);
-        if let Some(path) = self.file_dialog.take_picked() {
-            self.push_swap_path = Some(path.to_path_buf());
-            self.visualizer.update_path(path);
+impl eframe::App for App {
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+        let path_set = self.config.push_swap_path.is_some();
+        if path_set {
+            self.app_ui(ui);
+        } else {
+            self.first_time_ui(ui);
         }
     }
 }
