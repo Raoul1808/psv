@@ -102,5 +102,16 @@ impl Controls {
                 }
             });
         });
+        center_horizontal(ui, |ui| {
+            let instructions_len = sim.instructions().len();
+            let mut program_counter = sim.program_counter();
+            let res = egui::DragValue::new(&mut program_counter)
+                .range(0..=instructions_len)
+                .ui(ui);
+            if res.changed() {
+                self.need_redraw |= sim.skip_to(program_counter);
+            }
+            ui.label(format!("/ {instructions_len}"));
+        });
     }
 }
