@@ -147,6 +147,7 @@ pub struct GpuVisualizer {
     mat: [[f32; 4]; 4],
     vertices: Option<Vec<Vertex>>,
     indices: Option<Vec<u32>>,
+    rendering: bool,
 }
 
 impl GpuVisualizer {
@@ -250,6 +251,7 @@ impl GpuVisualizer {
             mat: ortho(0., 1., 1., 0., -1., 1.),
             vertices: None,
             indices: None,
+            rendering: false,
         }
     }
 
@@ -324,9 +326,13 @@ impl GpuVisualizer {
         }
         self.vertices = Some(vertices);
         self.indices = Some(indices);
+        self.rendering = true;
     }
 
     pub fn paint(&mut self, ui: &mut egui::Ui) {
+        if self.rendering {
+            ui.request_repaint();
+        }
         let size = ui.available_size();
         let (rect, _response) = ui.allocate_exact_size(size, egui::Sense::drag());
 
