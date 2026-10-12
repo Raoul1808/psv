@@ -49,8 +49,8 @@ impl Controls {
                 .show_value(false)
                 .ui(ui);
             if slider.changed() {
-                sim.skip_to(counter);
-                self.need_redraw = true;
+                self.play_state = PlayState::Stopped;
+                self.need_redraw |= sim.skip_to(counter);
             }
         });
         center_horizontal(ui, |ui| {
@@ -109,6 +109,7 @@ impl Controls {
                 .range(0..=instructions_len)
                 .ui(ui);
             if res.changed() {
+                self.play_state = PlayState::Stopped;
                 self.need_redraw |= sim.skip_to(program_counter);
             }
             ui.label(format!("/ {instructions_len}"));
