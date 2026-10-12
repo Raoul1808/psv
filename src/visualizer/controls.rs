@@ -101,10 +101,9 @@ impl Controls {
                     self.need_redraw |= sim.skip_to(instructions_len);
                 }
             });
-        });
-        center_horizontal(ui, |ui| {
-            let instructions_len = sim.instructions().len();
+            ui.separator();
             let mut program_counter = sim.program_counter();
+            let instructions_len = sim.instructions().len();
             let res = egui::DragValue::new(&mut program_counter)
                 .range(0..=instructions_len)
                 .ui(ui);
