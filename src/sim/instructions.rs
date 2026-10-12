@@ -169,7 +169,7 @@ mod test {
         ($stack:expr, $nums:expr) => {
             $stack.make_contiguous();
             let slc = $stack.as_slices().0;
-            assert_eq!(slc, $nums.as_slice());
+            assert_eq!(slc, $nums.as_slice() as &[i32]);
         };
     }
 
