@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use eframe::egui;
 
@@ -7,15 +10,18 @@ use crate::{
     visualizer::{
         controls::{Controls, PlayState},
         gpu::GpuVisualizer,
+        loader::Loader,
     },
 };
 
 mod controls;
 mod gpu;
+mod loader;
 
 pub struct Visualizer {
     gpu_view: GpuVisualizer,
     controls: Controls,
+    loader: Loader,
     sim: Sim,
     need_redraw: bool,
     last_instant: Instant,
@@ -32,11 +38,16 @@ impl Visualizer {
             gpu_view,
             sim,
             controls: Controls::new(),
+            loader: Loader::new(),
             need_redraw: true,
             last_instant: Instant::now(),
             exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::default(),
         }
+    }
+
+    pub fn update_path(&mut self, path: PathBuf) {
+        self.loader.set_path(path);
     }
 
     // PERF: This could definitely be optimized
@@ -80,8 +91,9 @@ impl Visualizer {
             });
         egui::Panel::left("visualizer_load_options")
             .resizable(false)
+            .min_size(250.)
             .show(ui, |ui| {
-                ui.label("load options");
+                self.loader.ui(ui);
             });
         egui::Panel::right("visualizer_details")
             .resizable(false)

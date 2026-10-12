@@ -21,6 +21,7 @@ impl Display for AppMode {
 }
 
 pub struct App {
+    // TODO: maybe remove
     push_swap_path: Option<PathBuf>,
     file_dialog: FileDialog,
     app_mode: AppMode,
@@ -89,6 +90,7 @@ impl eframe::App for App {
         self.file_dialog.update(ui);
         if let Some(path) = self.file_dialog.take_picked() {
             self.push_swap_path = Some(path.to_path_buf());
+            self.visualizer.update_path(path);
         }
     }
 }
