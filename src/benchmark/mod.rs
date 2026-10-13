@@ -6,6 +6,7 @@ use std::{
 };
 
 use eframe::egui::{self, Widget};
+use rand::seq::SliceRandom;
 use threadpool::ThreadPool;
 
 enum JobResultType {
@@ -58,14 +59,23 @@ impl Benchmark {
         let (sender, receiver) = channel();
         let pool = ThreadPool::new(self.num_threads);
         for i in 0..self.test_amount {
+            let nums = self.numbers;
             let sender = sender.clone();
             pool.execute(move || {
                 thread::sleep(Duration::from_millis(rand::random_range(1..=9) * 100));
+                let failure = rand::random_range(0..100) < 30;
+                let error = rand::random_range(0..100) < 10;
+                let ty = if error {
+                    JobResultType::Error("i fail :(".into())
+                } else if failure {
+                    let mut vec: Vec<_> = (0..nums as i32).collect();
+                    vec.shuffle(&mut rand::rng());
+                    JobResultType::Failure { numbers: vec }
+                } else {
+                    JobResultType::Success { instructions: i }
+                };
                 sender
-                    .send(JobResult {
-                        id: i,
-                        ty: JobResultType::Success { instructions: i },
-                    })
+                    .send(JobResult { id: i, ty })
                     .expect("halt and catch fire!!!");
             });
         }
