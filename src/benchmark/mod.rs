@@ -1,13 +1,10 @@
-use std::{
-    path::PathBuf,
-    sync::mpsc::{Receiver, TryRecvError, channel},
-    thread,
-    time::Duration,
-};
+use std::path::PathBuf;
 
 use eframe::egui::{self, Widget};
-use rand::seq::SliceRandom;
-use threadpool::ThreadPool;
+
+use crate::benchmark::jobs::JobManager;
+
+mod jobs;
 
 enum JobResultType {
     Success { instructions: usize },
@@ -20,13 +17,12 @@ struct JobResult {
     ty: JobResultType,
 }
 
-const THREADS_WARNING_THRESHOLD: usize = 16;
+const THREADS_WARNING_THRESHOLD: usize = 8;
 const MIN_THREADS: usize = 1;
 
 pub struct Benchmark {
     push_swap_path: PathBuf,
-    job_pool: Option<threadpool::ThreadPool>,
-    receiver: Option<Receiver<JobResult>>,
+    job_manager: Option<JobManager>,
     job_results: Vec<JobResult>,
     numbers: usize,
     test_amount: usize,
@@ -37,8 +33,7 @@ impl Benchmark {
     pub fn new() -> Self {
         Self {
             push_swap_path: PathBuf::new(),
-            job_pool: None,
-            receiver: None,
+            job_manager: None,
             job_results: vec![],
             numbers: 10,
             test_amount: 10,
@@ -51,67 +46,34 @@ impl Benchmark {
     }
 
     pub fn is_benchmarking(&self) -> bool {
-        self.job_pool.is_some()
+        self.job_manager.is_some()
     }
 
     pub fn send_jobs(&mut self) {
         self.job_results.clear();
-        let (sender, receiver) = channel();
-        let pool = ThreadPool::new(self.num_threads);
-        for i in 0..self.test_amount {
-            let nums = self.numbers;
-            let sender = sender.clone();
-            pool.execute(move || {
-                thread::sleep(Duration::from_millis(rand::random_range(1..=9) * 100));
-                let failure = rand::random_range(0..100) < 30;
-                let error = rand::random_range(0..100) < 10;
-                let ty = if error {
-                    JobResultType::Error("i fail :(".into())
-                } else if failure {
-                    let mut vec: Vec<_> = (0..nums as i32).collect();
-                    vec.shuffle(&mut rand::rng());
-                    JobResultType::Failure { numbers: vec }
-                } else {
-                    JobResultType::Success { instructions: i }
-                };
-                sender
-                    .send(JobResult { id: i, ty })
-                    .expect("halt and catch fire!!!");
-            });
-        }
-        self.job_pool = Some(pool);
-        self.receiver = Some(receiver);
+        let jobs = JobManager::run(
+            self.push_swap_path.clone(),
+            self.numbers,
+            self.test_amount,
+            self.num_threads,
+        );
+        self.job_manager = Some(jobs);
     }
 
     pub fn poll_jobs(&mut self) {
-        if let Some(receiver) = self.receiver.as_mut() {
-            loop {
-                match receiver.try_recv() {
-                    Ok(r) => {
-                        println!("received job result");
-                        self.job_results.push(r);
-                    }
-                    Err(TryRecvError::Empty) => {
-                        break;
-                    }
-                    Err(TryRecvError::Disconnected) => {
-                        // TODO: do more with this
-                        break;
-                    }
-                }
+        if let Some(manager) = self.job_manager.as_mut() {
+            while let Some(res) = manager.try_get_result() {
+                self.job_results.push(res);
             }
         }
-        if self.job_pool.is_some() && self.job_results.len() == self.test_amount {
-            println!("pool finished jobs. joining");
-            let pool = self.job_pool.take().unwrap();
-            pool.join();
-            drop(pool);
-            let _ = self.receiver.take();
+        if self.job_manager.as_ref().is_some_and(|m| m.is_done()) {
+            let jobs = self.job_manager.take().unwrap();
+            jobs.finalize();
         }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        if self.job_pool.is_some() {
+        if self.job_manager.is_some() {
             self.poll_jobs();
         }
 
@@ -149,18 +111,28 @@ impl Benchmark {
             });
             if self.num_threads > THREADS_WARNING_THRESHOLD {
                 ui.label(
-                    egui::RichText::new("⚠️ A high amount of threads can freeze your computer!")
-                        .color(egui::Color32::from_rgb(255, 192, 0)),
+                    egui::RichText::new(
+                        "⚠️ Setting this to a high amount can freeze your computer!",
+                    )
+                    .color(egui::Color32::from_rgb(255, 192, 0)),
                 );
             }
-            match self.job_pool.as_ref() {
-                Some(_) => {
+            match self.job_manager.as_ref() {
+                Some(jobs) => {
+                    if ui.button("Stop").clicked() {
+                        jobs.cancel();
+                    }
                     ui.horizontal(|ui| {
                         ui.spinner();
                         ui.label("Jobs running...");
                     });
-                    let progress = self.job_results.len() as f32 / self.test_amount as f32;
-                    egui::ProgressBar::new(progress).animate(true).ui(ui);
+                    let progress = jobs.jobs_progress();
+                    let queued = jobs.jobs_queued();
+                    let finished = jobs.jobs_finished();
+                    egui::ProgressBar::new(progress)
+                        .animate(true)
+                        .text(format!("{}/{}", finished, queued))
+                        .ui(ui);
                 }
                 None => {
                     if ui.button("Start benchmark").clicked() {

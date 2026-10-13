@@ -4,6 +4,7 @@ mod app;
 mod benchmark;
 mod cancellation;
 mod config;
+mod exec;
 mod sim;
 mod visualizer;
 
