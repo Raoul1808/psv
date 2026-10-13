@@ -36,7 +36,7 @@ impl App {
         Self {
             config,
             app_mode: AppMode::Visualize,
-            visualizer: Visualizer::new(cc),
+            visualizer,
         }
     }
 
