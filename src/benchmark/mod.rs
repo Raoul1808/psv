@@ -113,9 +113,11 @@ impl Benchmark {
         };
         let deviation = {
             let avg = avg as i128;
-            let sum = results.iter().map(|u| *u as i128 - avg).sum::<i128>();
-            let sq = sum * sum;
-            let avg = sq as f64 / results.len() as f64;
+            let sum = results
+                .iter()
+                .map(|u| (*u as i128 - avg).pow(2))
+                .sum::<i128>();
+            let avg = sum as f64 / results.len() as f64;
             avg.sqrt()
         };
         let metrics = Metrics {
