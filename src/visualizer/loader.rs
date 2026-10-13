@@ -174,6 +174,10 @@ impl Loader {
         self.numbers.as_slice()
     }
 
+    pub fn is_working(&self) -> bool {
+        self.exec.is_some()
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         self.poll_exec();
 

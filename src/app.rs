@@ -98,18 +98,31 @@ impl App {
                     }
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                    egui::ComboBox::new("app_mode", "App Mode:")
-                        .selected_text(self.app_mode.to_string())
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut self.app_mode,
-                                AppMode::Visualize,
-                                AppMode::Visualize.to_string(),
-                            );
-                            ui.selectable_value(
-                                &mut self.app_mode,
-                                AppMode::Benchmark,
-                                AppMode::Benchmark.to_string(),
+                    let can_change_app_mode = match self.app_mode {
+                        AppMode::Visualize => !self.visualizer.should_lock_app_mode(),
+                        AppMode::Benchmark => true,
+                    };
+                    let res = ui.add_enabled_ui(can_change_app_mode, |ui| {
+                        egui::ComboBox::new("app_mode", "App Mode:")
+                            .selected_text(self.app_mode.to_string())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.app_mode,
+                                    AppMode::Visualize,
+                                    AppMode::Visualize.to_string(),
+                                );
+                                ui.selectable_value(
+                                    &mut self.app_mode,
+                                    AppMode::Benchmark,
+                                    AppMode::Benchmark.to_string(),
+                                );
+                            });
+                    });
+                    egui::Tooltip::for_disabled(&res.response)
+                        .at_pointer()
+                        .show(|ui| {
+                            ui.label(
+                                "Cannot change app mode while push_swap processes are running",
                             );
                         });
                 });

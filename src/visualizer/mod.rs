@@ -98,6 +98,10 @@ impl Visualizer {
         }
     }
 
+    pub fn should_lock_app_mode(&self) -> bool {
+        self.loader.is_working()
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         self.load_sim_if_instructions_loaded();
 
