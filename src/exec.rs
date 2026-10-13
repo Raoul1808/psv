@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind, Read},
-    os::fd::AsRawFd,
+    os::{fd::AsRawFd, unix::process::ExitStatusExt},
     path::PathBuf,
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -31,6 +31,12 @@ pub enum ExecError {
 
     #[error("received non UTF-8 data")]
     Utf8,
+
+    #[error("program exit with code {0}")]
+    Code(i32),
+
+    #[error("program received signal {0}")]
+    Signal(i32),
 }
 
 #[derive(Debug)]
@@ -63,6 +69,18 @@ pub fn run_push_swap(
 
     'read_loop: loop {
         poll.poll(&mut events, Some(Duration::from_millis(50)))?;
+
+        if let Some(status) = cmd.try_wait()? {
+            if let Some(status) = status.code()
+                && status != 0
+            {
+                return Err(ExecError::Code(status));
+            }
+            if let Some(signal) = status.signal() {
+                return Err(ExecError::Signal(signal));
+            }
+            break;
+        }
 
         for event in &events {
             if event.token() == Token(0) && event.is_readable() {
