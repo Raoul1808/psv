@@ -48,6 +48,7 @@ impl App {
         let file = rfd::FileDialog::new().pick_file();
         if let Some(file) = file {
             self.visualizer.update_path(file.clone());
+            self.benchmark.update_path(file.clone());
             self.config.push_swap_path = Some(file);
             let res = self.config.save();
             if let Err(e) = res {
