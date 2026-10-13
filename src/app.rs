@@ -21,7 +21,6 @@ impl Display for AppMode {
 }
 
 pub struct App {
-    // TODO: maybe remove
     app_mode: AppMode,
     visualizer: Visualizer,
     config: Config,
