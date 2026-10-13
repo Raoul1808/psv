@@ -123,6 +123,17 @@ impl Loader {
         }
     }
 
+    pub fn clear(&mut self) {
+        if let Some(exec) = self.exec.take() {
+            exec.cancel();
+            let _ = exec.finish();
+        }
+        self.number_preset = NumberGeneration::RandomNormalized(10);
+        self.run_msg = None;
+        self.numbers.clear();
+        self.instructions = None;
+    }
+
     pub fn set_path(&mut self, path: PathBuf) {
         self.push_swap_path = path;
     }

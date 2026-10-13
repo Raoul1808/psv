@@ -30,6 +30,7 @@ fn check_duplicates(nums: &[i32]) -> Result<(), PushSwapError> {
     })
 }
 
+#[derive(Default)]
 pub struct Sim {
     instructions: Vec<PushSwapInstruction>,
     program_counter: usize,

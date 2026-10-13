@@ -85,6 +85,12 @@ impl App {
                         ui.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
+                match self.app_mode {
+                    AppMode::Visualize => {
+                        self.visualizer.menu_ui(ui);
+                    }
+                    AppMode::Benchmark => {}
+                }
                 ui.menu_button("Help", |ui| {
                     ui.add_enabled(false, egui::Button::new("TODO: add button"));
                     ui.separator();

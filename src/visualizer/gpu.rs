@@ -148,6 +148,7 @@ pub struct GpuVisualizer {
     vertices: Option<Vec<Vertex>>,
     indices: Option<Vec<u32>>,
     rendering: bool,
+    render_once: bool,
 }
 
 impl GpuVisualizer {
@@ -252,6 +253,7 @@ impl GpuVisualizer {
             vertices: None,
             indices: None,
             rendering: false,
+            render_once: true,
         }
     }
 
@@ -329,8 +331,19 @@ impl GpuVisualizer {
         self.rendering = true;
     }
 
+    pub fn clear(&mut self) {
+        self.vertices = Some(VERTICES.to_vec());
+        self.indices = Some(INDICES.to_vec());
+        self.rendering = false;
+        self.render_once = true;
+    }
+
     pub fn paint(&mut self, ui: &mut egui::Ui) {
         if self.rendering {
+            ui.request_repaint();
+        }
+        if self.render_once {
+            self.render_once = false;
             ui.request_repaint();
         }
         let size = ui.available_size();

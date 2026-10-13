@@ -23,6 +23,11 @@ impl Controls {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.need_redraw = false;
+        self.play_state = PlayState::Stopped;
+    }
+
     pub fn need_redraw(&self) -> bool {
         self.need_redraw
     }
@@ -66,6 +71,7 @@ impl Controls {
 
                 let program_counter = sim.program_counter();
                 let instructions_len = sim.instructions().len();
+                let can_play = !sim.instructions().is_empty();
                 let start_cond = program_counter > 0;
                 let fwd_cond = self.play_state == PlayState::PlayingForward;
                 let bwd_cond = self.play_state == PlayState::PlayingBackward;
@@ -77,20 +83,20 @@ impl Controls {
                     self.need_redraw |= sim.undo();
                 }
                 if bwd_cond {
-                    if ui.button("■").clicked() {
+                    if ui.add_enabled(can_play, egui::Button::new("■")).clicked() {
                         self.play_state = PlayState::Stopped;
                     }
                 } else {
-                    if ui.button("◀").clicked() {
+                    if ui.add_enabled(can_play, egui::Button::new("◀")).clicked() {
                         self.play_state = PlayState::PlayingBackward;
                     }
                 }
                 if fwd_cond {
-                    if ui.button("■").clicked() {
+                    if ui.add_enabled(can_play, egui::Button::new("■")).clicked() {
                         self.play_state = PlayState::Stopped;
                     }
                 } else {
-                    if ui.button("▶").clicked() {
+                    if ui.add_enabled(can_play, egui::Button::new("▶")).clicked() {
                         self.play_state = PlayState::PlayingForward;
                     }
                 }

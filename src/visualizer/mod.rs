@@ -33,7 +33,7 @@ pub struct Visualizer {
 impl Visualizer {
     pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
         let gpu_view = GpuVisualizer::new(cc);
-        let sim = Sim::new(&[], vec![]).unwrap();
+        let sim = Sim::default();
         Self {
             gpu_view,
             sim,
@@ -127,5 +127,16 @@ impl Visualizer {
             self.gpu_view.paint(ui);
         });
         self.need_redraw = false;
+    }
+
+    pub fn menu_ui(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("Visualizer", |ui| {
+            if ui.button("Reset").clicked() {
+                self.loader.clear();
+                self.gpu_view.clear();
+                self.controls.clear();
+                self.sim = Sim::default();
+            }
+        });
     }
 }
