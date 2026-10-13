@@ -9,6 +9,7 @@ use threadpool::ThreadPool;
 use crate::{
     benchmark::{JobResult, JobResultType},
     cancellation::CancellationToken,
+    common::SortingStrategy,
     exec::run_push_swap,
     sim::Sim,
 };
@@ -23,7 +24,13 @@ pub struct JobManager {
 }
 
 impl JobManager {
-    pub fn run(path: PathBuf, numbers: usize, tests: usize, threads: usize) -> Self {
+    pub fn run(
+        path: PathBuf,
+        numbers: usize,
+        tests: usize,
+        threads: usize,
+        sorting_strategy: SortingStrategy,
+    ) -> Self {
         let (sender, receiver) = channel();
         let cancellation_token = CancellationToken::new();
         let pool = ThreadPool::new(threads);
@@ -37,22 +44,24 @@ impl JobManager {
                 }
                 let mut numbers: Vec<_> = (0..numbers as i32).collect();
                 numbers.shuffle(&mut rand::rng());
-                let response = match run_push_swap(path, numbers, cancellation_token) {
-                    Ok(res) => {
-                        let mut sim = Sim::new(res.numbers.as_slice(), res.instructions).unwrap();
-                        while sim.step() {}
-                        if sim.is_sorted() {
-                            JobResultType::Success {
-                                instructions: sim.instructions().len(),
-                            }
-                        } else {
-                            JobResultType::Failure {
-                                numbers: res.numbers,
+                let response =
+                    match run_push_swap(path, numbers, sorting_strategy, cancellation_token) {
+                        Ok(res) => {
+                            let mut sim =
+                                Sim::new(res.numbers.as_slice(), res.instructions).unwrap();
+                            while sim.step() {}
+                            if sim.is_sorted() {
+                                JobResultType::Success {
+                                    instructions: sim.instructions().len(),
+                                }
+                            } else {
+                                JobResultType::Failure {
+                                    numbers: res.numbers,
+                                }
                             }
                         }
-                    }
-                    Err(e) => JobResultType::Error(e.to_string()),
-                };
+                        Err(e) => JobResultType::Error(e.to_string()),
+                    };
                 sender
                     .send(JobResult {
                         id: i,

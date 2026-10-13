@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Write, ops::RangeInclusive, path::PathBuf};
 use eframe::egui::{self, Widget};
 use rand::seq::SliceRandom;
 
-use crate::{sim::PushSwapInstruction, visualizer::exec::PushSwapExec};
+use crate::{common::SortingStrategy, sim::PushSwapInstruction, visualizer::exec::PushSwapExec};
 
 #[derive(Debug, Clone, PartialEq)]
 enum NumberGeneration {
@@ -105,6 +105,7 @@ impl NumberGeneration {
 pub struct Loader {
     push_swap_path: PathBuf,
     number_preset: NumberGeneration,
+    sorting_strategy: SortingStrategy,
     exec: Option<PushSwapExec>,
     run_msg: Option<String>,
     numbers: Vec<i32>,
@@ -116,6 +117,7 @@ impl Loader {
         Self {
             push_swap_path: PathBuf::new(),
             number_preset: NumberGeneration::RandomNormalized(10),
+            sorting_strategy: SortingStrategy::default(),
             exec: None,
             run_msg: None,
             numbers: vec![],
@@ -129,6 +131,7 @@ impl Loader {
             let _ = exec.finish();
         }
         self.number_preset = NumberGeneration::RandomNormalized(10);
+        self.sorting_strategy = SortingStrategy::default();
         self.run_msg = None;
         self.numbers.clear();
         self.instructions = None;
@@ -186,6 +189,7 @@ impl Loader {
             .truncate()
             .ui(ui);
         self.number_preset.ui(ui);
+        self.sorting_strategy.ui(ui);
         match self.exec.as_ref() {
             Some(exec) => {
                 if ui.button("Kill").clicked() {
@@ -201,7 +205,7 @@ impl Loader {
                     let path = self.push_swap_path.clone();
                     match self.number_preset.get_numbers() {
                         Ok(n) => {
-                            let exec = PushSwapExec::new(path, n);
+                            let exec = PushSwapExec::new(path, n, self.sorting_strategy);
                             self.exec = Some(exec);
                         }
                         Err(e) => {
@@ -211,7 +215,7 @@ impl Loader {
                 }
                 if !self.numbers.is_empty() && ui.button("Rerun with same numbers").clicked() {
                     let path = self.push_swap_path.clone();
-                    let exec = PushSwapExec::new(path, self.numbers.clone());
+                    let exec = PushSwapExec::new(path, self.numbers.clone(), self.sorting_strategy);
                     self.exec = Some(exec);
                 }
                 if let Some(msg) = self.run_msg.as_ref() {

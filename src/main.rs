@@ -3,6 +3,7 @@ use crate::{app::App, config::Config};
 mod app;
 mod benchmark;
 mod cancellation;
+mod common;
 mod config;
 mod exec;
 mod sim;

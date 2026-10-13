@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     cancellation::CancellationToken,
+    common::SortingStrategy,
     exec::{ExecError, ExecResult, run_push_swap},
 };
 
@@ -17,12 +18,12 @@ pub struct PushSwapExec {
 }
 
 impl PushSwapExec {
-    pub fn new(path: PathBuf, numbers: Vec<i32>) -> Self {
+    pub fn new(path: PathBuf, numbers: Vec<i32>, sorting_strategy: SortingStrategy) -> Self {
         let cancellation_token = CancellationToken::new();
         let token_clone = cancellation_token.clone();
         let (sender, receiver) = channel();
         let handle = thread::spawn(move || {
-            let res = run_push_swap(path, numbers, token_clone);
+            let res = run_push_swap(path, numbers, sorting_strategy, token_clone);
             sender
                 .send(res)
                 .expect("there is nothing we can do about this");

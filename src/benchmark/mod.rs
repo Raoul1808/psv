@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use eframe::egui::{self, Widget};
 
-use crate::benchmark::jobs::JobManager;
+use crate::{benchmark::jobs::JobManager, common::SortingStrategy};
 
 mod jobs;
 
@@ -36,6 +36,7 @@ pub struct Benchmark {
     numbers: usize,
     test_amount: usize,
     num_threads: usize,
+    sorting_strategy: SortingStrategy,
     bench_result: Option<Metrics>,
 }
 
@@ -48,6 +49,7 @@ impl Benchmark {
             numbers: 10,
             test_amount: 10,
             num_threads: 4,
+            sorting_strategy: SortingStrategy::default(),
             bench_result: None,
         }
     }
@@ -68,6 +70,7 @@ impl Benchmark {
             self.numbers,
             self.test_amount,
             self.num_threads,
+            self.sorting_strategy,
         );
         self.job_manager = Some(jobs);
     }
@@ -167,6 +170,7 @@ impl Benchmark {
                     if self.num_threads == 1 { "" } else { "s" }
                 ));
             });
+            self.sorting_strategy.ui(ui);
             if self.num_threads > THREADS_WARNING_THRESHOLD {
                 ui.label(
                     egui::RichText::new(

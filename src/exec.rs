@@ -11,6 +11,7 @@ use thiserror::Error;
 
 use crate::{
     cancellation::CancellationToken,
+    common::SortingStrategy,
     sim::{PushSwapError, PushSwapInstruction},
 };
 
@@ -49,16 +50,18 @@ pub struct ExecResult {
 pub fn run_push_swap(
     path: PathBuf,
     numbers: Vec<i32>,
+    sorting_strategy: SortingStrategy,
     cancellation_token: CancellationToken,
 ) -> Result<ExecResult, ExecError> {
     let start = Instant::now();
 
     let mut poll = Poll::new()?;
     let args = numbers.iter().map(|i| i.to_string());
-    let mut cmd = Command::new(path)
-        .args(args)
-        .stdout(Stdio::piped())
-        .spawn()?;
+    let mut cmd = Command::new(path);
+    if let Some(arg) = sorting_strategy.to_arg() {
+        cmd.arg(arg);
+    }
+    let mut cmd = cmd.args(args).stdout(Stdio::piped()).spawn()?;
     let mut stdout = cmd.stdout.take().expect("what the fuck???");
     let mut stdout_fd = SourceFd(&stdout.as_raw_fd());
     poll.registry()
