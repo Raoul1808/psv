@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use eframe::egui::{self, Widget};
 use egui_alignments::center_horizontal;
 
@@ -13,6 +15,7 @@ pub enum PlayState {
 pub struct Controls {
     need_redraw: bool,
     play_state: PlayState,
+    instructions_per_second: usize,
 }
 
 impl Controls {
@@ -20,6 +23,7 @@ impl Controls {
         Controls {
             need_redraw: false,
             play_state: PlayState::Stopped,
+            instructions_per_second: 60,
         }
     }
 
@@ -34,6 +38,10 @@ impl Controls {
 
     pub fn play_state(&self) -> PlayState {
         self.play_state
+    }
+
+    pub fn playback_speed(&self) -> Duration {
+        Duration::from_secs_f64(1. / self.instructions_per_second as f64)
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, sim: &mut Sim) {
@@ -59,6 +67,19 @@ impl Controls {
             }
         });
         center_horizontal(ui, |ui| {
+            let res = ui.scope(|ui| {
+                let speed =
+                    10_f64.powf(0_f64.max(self.instructions_per_second.ilog10() as f64 - 2.));
+                egui::DragValue::new(&mut self.instructions_per_second)
+                    .speed(speed)
+                    .range(2..=(sim.instructions().len() / 4).max(60))
+                    .ui(ui);
+                ui.label("ips");
+            });
+            egui::Tooltip::for_enabled(&res.response)
+                .at_pointer()
+                .show(|ui| ui.label("playback speed in instructions per second"));
+            ui.separator();
             ui.scope(|ui| {
                 ui.style_mut().text_styles.insert(
                     egui::TextStyle::Button,

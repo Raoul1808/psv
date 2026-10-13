@@ -26,7 +26,6 @@ pub struct Visualizer {
     sim: Sim,
     need_redraw: bool,
     last_instant: Instant,
-    exec_interval: Duration,
     duration_accumulated: Duration,
 }
 
@@ -41,7 +40,6 @@ impl Visualizer {
             loader: Loader::new(),
             need_redraw: true,
             last_instant: Instant::now(),
-            exec_interval: Duration::from_secs_f64(1. / 60.),
             duration_accumulated: Duration::default(),
         }
     }
@@ -54,23 +52,25 @@ impl Visualizer {
     fn play_sim(&mut self, ui: &mut egui::Ui) {
         match self.controls.play_state() {
             PlayState::PlayingForward => {
+                let exec_interval = self.controls.playback_speed();
                 let current_instant = Instant::now();
                 let catching_duration = current_instant.duration_since(self.last_instant);
                 while self.duration_accumulated <= catching_duration {
                     self.sim.step();
                     self.need_redraw = true;
-                    self.duration_accumulated += self.exec_interval;
+                    self.duration_accumulated += exec_interval;
                 }
                 self.duration_accumulated -= catching_duration;
                 ui.request_repaint();
             }
             PlayState::PlayingBackward => {
+                let exec_interval = self.controls.playback_speed();
                 let current_instant = Instant::now();
                 let catching_duration = current_instant.duration_since(self.last_instant);
                 while self.duration_accumulated <= catching_duration {
                     self.sim.undo();
                     self.need_redraw = true;
-                    self.duration_accumulated += self.exec_interval;
+                    self.duration_accumulated += exec_interval;
                 }
                 self.duration_accumulated -= catching_duration;
                 ui.request_repaint();
