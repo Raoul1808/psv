@@ -3,7 +3,7 @@ use std::fmt::Display;
 use eframe::egui::{self, Widget};
 use egui_alignments::center_horizontal;
 
-use crate::{config::Config, visualizer::Visualizer};
+use crate::{benchmark::Benchmark, config::Config, visualizer::Visualizer};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum AppMode {
@@ -23,19 +23,24 @@ impl Display for AppMode {
 pub struct App {
     app_mode: AppMode,
     visualizer: Visualizer,
+    benchmark: Benchmark,
     config: Config,
 }
 
 impl App {
     pub fn new(cc: &eframe::CreationContext, config: Config) -> Self {
         let mut visualizer = Visualizer::new(cc);
+        let mut benchmark = Benchmark::new();
         if let Some(path) = config.push_swap_path.clone() {
-            visualizer.update_path(path);
+            visualizer.update_path(path.clone());
+            benchmark.update_path(path.clone());
         }
         Self {
             config,
-            app_mode: AppMode::Visualize,
+            // TODO: CHANGE IT BACK TO VISUALIZE
+            app_mode: AppMode::Benchmark,
             visualizer,
+            benchmark,
         }
     }
 
@@ -100,7 +105,7 @@ impl App {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     let can_change_app_mode = match self.app_mode {
                         AppMode::Visualize => !self.visualizer.should_lock_app_mode(),
-                        AppMode::Benchmark => true,
+                        AppMode::Benchmark => !self.benchmark.is_benchmarking(),
                     };
                     let res = ui.add_enabled_ui(can_change_app_mode, |ui| {
                         egui::ComboBox::new("app_mode", "App Mode:")
@@ -134,7 +139,7 @@ impl App {
                 self.visualizer.ui(ui);
             }
             AppMode::Benchmark => {
-                ui.label("todo: implement benchmarking ui");
+                self.benchmark.ui(ui);
             }
         }
     }
