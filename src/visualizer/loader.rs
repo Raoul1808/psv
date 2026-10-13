@@ -124,5 +124,9 @@ impl Loader {
             .truncate()
             .ui(ui);
         self.number_preset.ui(ui);
+        if ui.button("Visualize").clicked() {
+            let args = self.number_preset.get_args();
+            println!("args: {args:#?}");
+        }
     }
 }
