@@ -54,6 +54,19 @@ impl Benchmark {
         }
     }
 
+    pub fn clear(&mut self) {
+        if let Some(jobs) = self.job_manager.take() {
+            jobs.cancel();
+            jobs.finalize();
+        }
+        self.job_results.clear();
+        self.numbers = 10;
+        self.test_amount = 10;
+        self.num_threads = 4;
+        self.sorting_strategy = SortingStrategy::default();
+        self.bench_result = None;
+    }
+
     pub fn update_path(&mut self, path: PathBuf) {
         self.push_swap_path = path;
     }
@@ -229,6 +242,14 @@ impl Benchmark {
                         ui.label(format!("Job {id} ran into an error: {e}"));
                     }
                 }
+            }
+        });
+    }
+
+    pub fn menu_ui(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("Benchmark", |ui| {
+            if ui.button("Reset").clicked() {
+                self.clear();
             }
         });
     }

@@ -94,7 +94,9 @@ impl App {
                     AppMode::Visualize => {
                         self.visualizer.menu_ui(ui);
                     }
-                    AppMode::Benchmark => {}
+                    AppMode::Benchmark => {
+                        self.benchmark.menu_ui(ui);
+                    }
                 }
                 ui.menu_button("Help", |ui| {
                     ui.add_enabled(false, egui::Button::new("TODO: add button"));
