@@ -10,7 +10,7 @@ use crate::{
     benchmark::{JobResult, JobResultType},
     cancellation::CancellationToken,
     common::SortingStrategy,
-    exec::run_push_swap,
+    exec::{ExecError, run_push_swap},
     sim::Sim,
 };
 
@@ -60,7 +60,12 @@ impl JobManager {
                                 }
                             }
                         }
-                        Err(e) => JobResultType::Error(e.to_string()),
+                        Err(e) => {
+                            if matches!(e, ExecError::Cancelled) {
+                                return;
+                            }
+                            JobResultType::Error(e.to_string())
+                        }
                     };
                 sender
                     .send(JobResult {
