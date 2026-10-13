@@ -29,6 +29,10 @@ pub struct App {
 
 impl App {
     pub fn new(cc: &eframe::CreationContext, config: Config) -> Self {
+        let mut visualizer = Visualizer::new(cc);
+        if let Some(path) = config.push_swap_path.clone() {
+            visualizer.update_path(path);
+        }
         Self {
             config,
             app_mode: AppMode::Visualize,

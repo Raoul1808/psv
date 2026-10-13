@@ -1,7 +1,9 @@
-use std::{collections::HashSet, ops::RangeInclusive, path::PathBuf};
+use std::{collections::HashSet, fmt::Write, ops::RangeInclusive, path::PathBuf};
 
 use eframe::egui::{self, Widget};
 use rand::seq::SliceRandom;
+
+use crate::{sim::PushSwapInstruction, visualizer::exec::PushSwapExec};
 
 #[derive(Debug, Clone, PartialEq)]
 enum NumberGeneration {
@@ -11,12 +13,12 @@ enum NumberGeneration {
 }
 
 impl NumberGeneration {
-    fn get_args(&self) -> Vec<String> {
+    fn get_numbers(&self) -> Result<Vec<i32>, String> {
         match self {
             Self::RandomNormalized(n) => {
-                let mut nums: Vec<_> = (0..*n).collect();
+                let mut nums: Vec<_> = (0..*n as i32).collect();
                 nums.shuffle(&mut rand::rng());
-                nums.into_iter().map(|u| u.to_string()).collect()
+                Ok(nums)
             }
             Self::RandomRanged(r, n) => {
                 let len = *r.end() as i64 - *r.start() as i64 + 1;
@@ -26,9 +28,12 @@ impl NumberGeneration {
                 while set.len() < len {
                     set.insert(rand::random_range(r.clone()));
                 }
-                set.into_iter().map(|i| i.to_string()).collect()
+                Ok(set.into_iter().collect())
             }
-            Self::UserInput(s) => s.split_whitespace().map(str::to_string).collect(),
+            Self::UserInput(s) => s
+                .split_whitespace()
+                .map(|s| s.parse::<i32>().map_err(|e| e.to_string()))
+                .collect(),
         }
     }
 
@@ -98,35 +103,116 @@ impl NumberGeneration {
 }
 
 pub struct Loader {
-    push_swap_path: Option<PathBuf>,
+    push_swap_path: PathBuf,
     number_preset: NumberGeneration,
+    exec: Option<PushSwapExec>,
+    run_msg: Option<String>,
+    numbers: Vec<i32>,
+    instructions: Option<Vec<PushSwapInstruction>>,
 }
 
 impl Loader {
     pub fn new() -> Self {
         Self {
-            push_swap_path: None,
+            push_swap_path: PathBuf::new(),
             number_preset: NumberGeneration::RandomNormalized(10),
+            exec: None,
+            run_msg: None,
+            numbers: vec![],
+            instructions: None,
         }
     }
 
     pub fn set_path(&mut self, path: PathBuf) {
-        self.push_swap_path = Some(path);
+        self.push_swap_path = path;
+    }
+
+    pub fn poll_exec(&mut self) {
+        if let Some(exec) = self.exec.as_mut() {
+            exec.poll_process();
+        }
+        if self.exec.as_ref().is_some_and(|e| e.is_finished()) {
+            let exec = self.exec.take().unwrap();
+            let res = exec.finish();
+            match res {
+                Ok(e) => {
+                    self.instructions = Some(e.instructions);
+                    self.numbers = e.numbers;
+                    self.run_msg = Some(format!(
+                        "Execution finished! Took {}s",
+                        e.duration.as_secs_f64()
+                    ));
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    self.run_msg = Some(format!("Execution failed: {e}"));
+                }
+            }
+        }
+    }
+
+    pub fn instructions_ready(&self) -> bool {
+        self.instructions.is_some()
+    }
+
+    pub fn take_instructions(&mut self) -> Option<Vec<PushSwapInstruction>> {
+        self.instructions.take()
+    }
+
+    pub fn numbers(&self) -> &[i32] {
+        self.numbers.as_slice()
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let path_str = self
-            .push_swap_path
-            .as_ref()
-            .map(|p| p.display().to_string())
-            .unwrap_or("None".into());
+        self.poll_exec();
+
+        let path_str = self.push_swap_path.display();
         egui::Label::new(format!("Executable path: {}", path_str))
             .truncate()
             .ui(ui);
         self.number_preset.ui(ui);
-        if ui.button("Visualize").clicked() {
-            let args = self.number_preset.get_args();
-            println!("args: {args:#?}");
+        match self.exec.as_ref() {
+            Some(exec) => {
+                if ui.button("Kill").clicked() {
+                    exec.cancel();
+                }
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("Running push_swap...");
+                });
+            }
+            None => {
+                if ui.button("Visualize").clicked() {
+                    let path = self.push_swap_path.clone();
+                    match self.number_preset.get_numbers() {
+                        Ok(n) => {
+                            let exec = PushSwapExec::new(path, n);
+                            self.exec = Some(exec);
+                        }
+                        Err(e) => {
+                            self.run_msg = Some(e.to_string());
+                        }
+                    };
+                }
+                if !self.numbers.is_empty() && ui.button("Rerun with same numbers").clicked() {
+                    let path = self.push_swap_path.clone();
+                    let exec = PushSwapExec::new(path, self.numbers.clone());
+                    self.exec = Some(exec);
+                }
+                if let Some(msg) = self.run_msg.as_ref() {
+                    ui.label(msg);
+                }
+            }
+        }
+        // TODO: reorder UI
+        if !self.numbers.is_empty() && ui.button("Copy numbers to clipboard").clicked() {
+            let nums = self.numbers.iter().fold(String::new(), |mut acc, n| {
+                let _ = write!(acc, "{n}");
+                acc
+            });
+            let nums = nums.trim_end();
+            ui.copy_text(nums.into());
+            println!("Copied numbers to clipboard!");
         }
     }
 }

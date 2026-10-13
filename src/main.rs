@@ -1,6 +1,7 @@
 use crate::{app::App, config::Config};
 
 mod app;
+mod cancellation;
 mod config;
 mod sim;
 mod visualizer;

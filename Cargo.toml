@@ -12,6 +12,7 @@ lto = true
 bytemuck = "1.25.2"
 eframe = { version = "0.36.2", features = ["persistence", "wgpu"] }
 egui_alignments = "0.3.9"
+mio = { version = "1.2.4", features = ["os-poll", "os-ext"] }
 rand = "0.10.3"
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }

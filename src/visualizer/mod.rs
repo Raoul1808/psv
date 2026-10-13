@@ -6,7 +6,7 @@ use std::{
 use eframe::egui;
 
 use crate::{
-    sim::{PushSwapInstruction, Sim},
+    sim::Sim,
     visualizer::{
         controls::{Controls, PlayState},
         gpu::GpuVisualizer,
@@ -15,6 +15,7 @@ use crate::{
 };
 
 mod controls;
+mod exec;
 mod gpu;
 mod loader;
 
@@ -32,8 +33,7 @@ pub struct Visualizer {
 impl Visualizer {
     pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
         let gpu_view = GpuVisualizer::new(cc);
-        let nums: Vec<_> = (0..100).collect();
-        let sim = Sim::new(nums.as_slice(), [PushSwapInstruction::PushB].repeat(99)).unwrap();
+        let sim = Sim::new(&[], vec![]).unwrap();
         Self {
             gpu_view,
             sim,
@@ -51,7 +51,7 @@ impl Visualizer {
     }
 
     // PERF: This could definitely be optimized
-    pub fn play_sim(&mut self, ui: &mut egui::Ui) {
+    fn play_sim(&mut self, ui: &mut egui::Ui) {
         match self.controls.play_state() {
             PlayState::PlayingForward => {
                 let current_instant = Instant::now();
@@ -82,7 +82,25 @@ impl Visualizer {
         self.last_instant = Instant::now();
     }
 
+    fn load_sim_if_instructions_loaded(&mut self) {
+        if self.loader.instructions_ready() {
+            let instructions = self.loader.take_instructions().unwrap();
+            let numbers = self.loader.numbers();
+            match Sim::new(numbers, instructions) {
+                Ok(s) => {
+                    self.sim = s;
+                    self.gpu_view.update(&self.sim);
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                }
+            }
+        }
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui) {
+        self.load_sim_if_instructions_loaded();
+
         egui::Panel::bottom("visualizer_progress")
             .resizable(false)
             .show(ui, |ui| {
