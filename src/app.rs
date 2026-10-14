@@ -130,7 +130,10 @@ impl App {
                     }
                 }
                 ui.menu_button("Help", |ui| {
-                    ui.add_enabled(false, egui::Button::new("TODO: add button"));
+                    ui.add_enabled(
+                        false,
+                        egui::Label::new(format!("psv v{}", env!("CARGO_PKG_VERSION"))),
+                    );
                     ui.separator();
                     if ui.button("About psv").clicked() {
                         self.show_about = true;
