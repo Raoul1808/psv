@@ -40,6 +40,10 @@ impl Controls {
         self.play_state
     }
 
+    pub fn stop(&mut self) {
+        self.play_state = PlayState::Stopped;
+    }
+
     pub fn playback_speed(&self) -> Duration {
         Duration::from_secs_f64(1. / self.instructions_per_second as f64)
     }

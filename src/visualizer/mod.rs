@@ -10,6 +10,7 @@ use crate::{
     sim::Sim,
     visualizer::{
         controls::{Controls, PlayState},
+        details::Details,
         gpu::GpuVisualizer,
         loader::Loader,
         visuals::Visuals,
@@ -17,6 +18,7 @@ use crate::{
 };
 
 mod controls;
+mod details;
 mod exec;
 mod gpu;
 mod loader;
@@ -34,6 +36,7 @@ pub struct Visualizer {
     controls: Controls,
     loader: Loader,
     visuals: Visuals,
+    details: Details,
     sim: Sim,
     need_redraw: bool,
     last_instant: Instant,
@@ -51,6 +54,7 @@ impl Visualizer {
             controls: Controls::new(),
             loader: Loader::new(),
             visuals: Visuals::new(),
+            details: Details::new(),
             need_redraw: true,
             last_instant: Instant::now(),
             duration_accumulated: Duration::default(),
@@ -73,8 +77,12 @@ impl Visualizer {
                     self.sim.step();
                     self.need_redraw = true;
                     self.duration_accumulated += exec_interval;
+                    self.details.mark_follow_this_frame();
                 }
                 self.duration_accumulated -= catching_duration;
+                if self.sim.program_counter() == self.sim.instructions().iter().len() {
+                    self.controls.stop();
+                }
                 ui.request_repaint();
             }
             PlayState::PlayingBackward => {
@@ -85,8 +93,12 @@ impl Visualizer {
                     self.sim.undo();
                     self.need_redraw = true;
                     self.duration_accumulated += exec_interval;
+                    self.details.mark_follow_this_frame();
                 }
                 self.duration_accumulated -= catching_duration;
+                if self.sim.program_counter() == 0 {
+                    self.controls.stop();
+                }
                 ui.request_repaint();
             }
             _ => {
@@ -127,7 +139,10 @@ impl Visualizer {
             .resizable(false)
             .show(ui, |ui| {
                 self.controls.ui(ui, &mut self.sim);
-                self.need_redraw |= self.controls.need_redraw();
+                if self.controls.need_redraw() {
+                    self.need_redraw = true;
+                    self.details.mark_follow_this_frame();
+                }
             });
         egui::Panel::left("visualizer_load_options")
             .resizable(false)
@@ -148,7 +163,13 @@ impl Visualizer {
                 egui::Panel::right("visualizer_details")
                     .resizable(false)
                     .show(ui, |ui| {
-                        ui.label("details");
+                        self.details.ui(ui, &self.sim);
+                        if self.details.can_skip() {
+                            let skip = self.details.skip_to().unwrap_or_default();
+                            self.sim.skip_to(skip);
+                            self.controls.stop();
+                            self.need_redraw = true;
+                        }
                     });
             }
             _ => {}

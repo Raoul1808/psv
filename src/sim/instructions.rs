@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, ops::Not, str::FromStr};
+use std::{collections::VecDeque, fmt::Display, ops::Not, str::FromStr};
 
 use crate::sim::error::PushSwapError;
 
@@ -118,6 +118,26 @@ impl FromStr for PushSwapInstruction {
             _ => return Err(PushSwapError::InvalidInstruction(s.to_string())),
         };
         Ok(ins)
+    }
+}
+
+impl Display for PushSwapInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use PushSwapInstruction::*;
+        let str = match self {
+            SwapA => "sa",
+            SwapB => "sb",
+            SwapBoth => "ss",
+            PushA => "pa",
+            PushB => "pb",
+            RotateA => "ra",
+            RotateB => "rb",
+            RotateBoth => "rr",
+            ReverseRotateA => "rra",
+            ReverseRotateB => "rrb",
+            ReverseRotateBoth => "rrr",
+        };
+        write!(f, "{str}")
     }
 }
 
