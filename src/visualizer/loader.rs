@@ -226,7 +226,7 @@ impl Loader {
         // TODO: reorder UI
         if !self.numbers.is_empty() && ui.button("Copy numbers to clipboard").clicked() {
             let nums = self.numbers.iter().fold(String::new(), |mut acc, n| {
-                let _ = write!(acc, "{n}");
+                let _ = write!(acc, "{n} ");
                 acc
             });
             let nums = nums.trim_end();

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fmt::Write, path::PathBuf};
 
 use eframe::egui::{self, Widget};
 
@@ -236,7 +236,17 @@ impl Benchmark {
                 match &job.ty {
                     JobResultType::Success { .. } => {}
                     JobResultType::Failure { numbers } => {
-                        ui.label(format!("Job {id} failed. Had numbers {numbers:?}"));
+                        ui.horizontal(|ui| {
+                            ui.label(format!("Job {id} failed."));
+                            if ui.button("Copy numbers").clicked() {
+                                let nums = numbers.iter().fold(String::new(), |mut acc, n| {
+                                    let _ = write!(acc, "{n} ");
+                                    acc
+                                });
+                                let nums = nums.trim_end();
+                                ui.copy_text(nums.into());
+                            }
+                        });
                     }
                     JobResultType::Error(e) => {
                         ui.label(format!("Job {id} ran into an error: {e}"));
