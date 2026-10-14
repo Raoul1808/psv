@@ -2,9 +2,13 @@ use std::{fmt::Write, path::PathBuf};
 
 use eframe::egui::{self, Widget};
 
-use crate::{benchmark::jobs::JobManager, common::SortingStrategy};
+use crate::{
+    benchmark::{jobs::JobManager, plot::Plot},
+    common::SortingStrategy,
+};
 
 mod jobs;
+mod plot;
 
 enum JobResultType {
     Success { instructions: usize },
@@ -20,15 +24,6 @@ struct JobResult {
 const THREADS_WARNING_THRESHOLD: usize = 8;
 const MIN_THREADS: usize = 1;
 
-#[derive(Debug, Clone, Copy)]
-struct Metrics {
-    min: usize,
-    max: usize,
-    avg: usize,
-    med: f64,
-    deviation: f64,
-}
-
 pub struct Benchmark {
     push_swap_path: PathBuf,
     job_manager: Option<JobManager>,
@@ -37,7 +32,7 @@ pub struct Benchmark {
     test_amount: usize,
     num_threads: usize,
     sorting_strategy: SortingStrategy,
-    bench_result: Option<Metrics>,
+    plot_result: Plot,
 }
 
 impl Benchmark {
@@ -50,7 +45,7 @@ impl Benchmark {
             test_amount: 10,
             num_threads: 4,
             sorting_strategy: SortingStrategy::default(),
-            bench_result: None,
+            plot_result: Plot::new(),
         }
     }
 
@@ -64,7 +59,7 @@ impl Benchmark {
         self.test_amount = 10;
         self.num_threads = 4;
         self.sorting_strategy = SortingStrategy::default();
-        self.bench_result = None;
+        self.plot_result.clear();
     }
 
     pub fn update_path(&mut self, path: PathBuf) {
@@ -77,7 +72,7 @@ impl Benchmark {
 
     fn send_jobs(&mut self) {
         self.job_results.clear();
-        self.bench_result = None;
+        self.plot_result.clear();
         let jobs = JobManager::run(
             self.push_swap_path.clone(),
             self.numbers,
@@ -99,66 +94,23 @@ impl Benchmark {
                 match &res.ty {
                     JobResultType::Failure { .. } => {
                         log::warn!("job {} did not sort numbers", res.id);
+                        self.job_results.push(res);
                     }
                     JobResultType::Error(e) => {
                         log::error!("job {} ran into an error: {e}", res.id);
+                        self.job_results.push(res);
                     }
-                    _ => {}
+                    JobResultType::Success { instructions } => {
+                        self.plot_result.add_result(*instructions);
+                    }
                 }
-                self.job_results.push(res);
             }
         }
         if self.job_manager.as_ref().is_some_and(|m| m.is_done()) {
             let jobs = self.job_manager.take().unwrap();
             jobs.finalize();
             log::info!("jobs done");
-            self.finished_jobs();
         }
-    }
-
-    // TODO: realtime statistics would be cool to have
-    fn finished_jobs(&mut self) {
-        let mut results: Vec<_> = self
-            .job_results
-            .iter()
-            .filter_map(|j| {
-                if let JobResultType::Success { instructions } = j.ty {
-                    Some(instructions)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if results.is_empty() {
-            return;
-        }
-        results.sort();
-        let min = *results.iter().min().unwrap();
-        let max = *results.iter().max().unwrap();
-        let avg =
-            (results.iter().map(|u| *u as u128).sum::<u128>() / results.len() as u128) as usize;
-        let med = if results.len() % 2 == 1 {
-            results[(results.len() - 1) / 2] as f64
-        } else {
-            (results[(results.len() - 1) / 2] + results[(results.len() - 1) / 2 + 1]) as f64 / 2.
-        };
-        let deviation = {
-            let avg = avg as i128;
-            let sum = results
-                .iter()
-                .map(|u| (*u as i128 - avg).pow(2))
-                .sum::<i128>();
-            let avg = sum as f64 / results.len() as f64;
-            avg.sqrt()
-        };
-        let metrics = Metrics {
-            min,
-            max,
-            avg,
-            med,
-            deviation,
-        };
-        self.bench_result = Some(metrics);
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
@@ -231,20 +183,8 @@ impl Benchmark {
                 }
             }
 
-            if let Some(metrics) = self.bench_result.as_ref() {
-                let Metrics {
-                    min,
-                    max,
-                    avg,
-                    med,
-                    deviation,
-                } = metrics;
-                ui.label(format!("Min: {}", min));
-                ui.label(format!("Max: {}", max));
-                ui.label(format!("Average: {}", avg));
-                ui.label(format!("Median: {}", med));
-                ui.label(format!("Deviation: {}", deviation));
-            }
+            ui.separator();
+            self.plot_result.ui(ui);
 
             for job in &self.job_results {
                 let id = job.id;
