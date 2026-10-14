@@ -6,13 +6,14 @@ mod cancellation;
 mod common;
 mod config;
 mod exec;
+mod gradient;
 mod sim;
 mod visualizer;
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions::default();
 
-    let config = Config::load_or_default().expect("failed to load config");
+    let config = Config::load_or_default();
     eframe::run_native(
         "push_swap visualizer",
         native_options,

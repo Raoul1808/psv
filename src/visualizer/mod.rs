@@ -6,11 +6,13 @@ use std::{
 use eframe::egui;
 
 use crate::{
+    config::{ColorProfile, Config},
     sim::Sim,
     visualizer::{
         controls::{Controls, PlayState},
         gpu::GpuVisualizer,
         loader::Loader,
+        visuals::Visuals,
     },
 };
 
@@ -18,15 +20,25 @@ mod controls;
 mod exec;
 mod gpu;
 mod loader;
+mod visuals;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SideViewMode {
+    None,
+    Visuals,
+    Details,
+}
 
 pub struct Visualizer {
     gpu_view: GpuVisualizer,
     controls: Controls,
     loader: Loader,
+    visuals: Visuals,
     sim: Sim,
     need_redraw: bool,
     last_instant: Instant,
     duration_accumulated: Duration,
+    side_view_mode: SideViewMode,
 }
 
 impl Visualizer {
@@ -38,9 +50,11 @@ impl Visualizer {
             sim,
             controls: Controls::new(),
             loader: Loader::new(),
+            visuals: Visuals::new(),
             need_redraw: true,
             last_instant: Instant::now(),
             duration_accumulated: Duration::default(),
+            side_view_mode: SideViewMode::None,
         }
     }
 
@@ -82,14 +96,18 @@ impl Visualizer {
         self.last_instant = Instant::now();
     }
 
-    fn load_sim_if_instructions_loaded(&mut self) {
+    fn load_sim_if_instructions_loaded(&mut self, color_profile: &ColorProfile) {
         if self.loader.instructions_ready() {
             let instructions = self.loader.take_instructions().unwrap();
             let numbers = self.loader.numbers();
             match Sim::new(numbers, instructions) {
                 Ok(s) => {
                     self.sim = s;
-                    self.gpu_view.update(&self.sim);
+                    self.gpu_view.update(
+                        &self.sim,
+                        &color_profile.colors,
+                        color_profile.clear_color,
+                    );
                 }
                 Err(e) => {
                     eprintln!("{e}");
@@ -102,8 +120,8 @@ impl Visualizer {
         self.loader.is_working()
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        self.load_sim_if_instructions_loaded();
+    pub fn ui(&mut self, ui: &mut egui::Ui, config: &mut Config) {
+        self.load_sim_if_instructions_loaded(config.get_current_profile());
 
         egui::Panel::bottom("visualizer_progress")
             .resizable(false)
@@ -117,16 +135,31 @@ impl Visualizer {
             .show(ui, |ui| {
                 self.loader.ui(ui);
             });
-        egui::Panel::right("visualizer_details")
-            .resizable(false)
-            .show(ui, |ui| {
-                ui.label("details");
-            });
+        match &self.side_view_mode {
+            SideViewMode::Visuals => {
+                egui::Panel::right("visualizer_visuals")
+                    .resizable(false)
+                    .show(ui, |ui| {
+                        self.visuals.ui(ui, config);
+                        self.need_redraw |= self.visuals.need_redraw();
+                    });
+            }
+            SideViewMode::Details => {
+                egui::Panel::right("visualizer_details")
+                    .resizable(false)
+                    .show(ui, |ui| {
+                        ui.label("details");
+                    });
+            }
+            _ => {}
+        }
         self.play_sim(ui);
         egui::CentralPanel::default().show(ui, |ui| {
             if self.need_redraw {
                 self.sim.make_contiguous();
-                self.gpu_view.update(&self.sim);
+                let prof = config.get_current_profile();
+                self.gpu_view
+                    .update(&self.sim, &prof.colors, prof.clear_color);
             }
             self.gpu_view.paint(ui);
         });
@@ -140,6 +173,45 @@ impl Visualizer {
                 self.gpu_view.clear();
                 self.controls.clear();
                 self.sim = Sim::default();
+            }
+            ui.separator();
+            let mut view = None;
+            if ui
+                .button(format!(
+                    "Visuals {}",
+                    if self.side_view_mode == SideViewMode::Visuals {
+                        "✔️"
+                    } else {
+                        ""
+                    }
+                ))
+                .clicked()
+            {
+                view = if self.side_view_mode == SideViewMode::Visuals {
+                    Some(SideViewMode::None)
+                } else {
+                    Some(SideViewMode::Visuals)
+                };
+            }
+            if ui
+                .button(format!(
+                    "Details {}",
+                    if self.side_view_mode == SideViewMode::Details {
+                        "✔️"
+                    } else {
+                        ""
+                    }
+                ))
+                .clicked()
+            {
+                view = if self.side_view_mode == SideViewMode::Details {
+                    Some(SideViewMode::None)
+                } else {
+                    Some(SideViewMode::Details)
+                };
+            }
+            if let Some(view) = view {
+                self.side_view_mode = view;
             }
         });
     }

@@ -139,7 +139,7 @@ impl App {
 
         match self.app_mode {
             AppMode::Visualize => {
-                self.visualizer.ui(ui);
+                self.visualizer.ui(ui, &mut self.config);
             }
             AppMode::Benchmark => {
                 self.benchmark.ui(ui);

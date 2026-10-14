@@ -4,7 +4,7 @@ use eframe::{
     wgpu::{self, VertexAttribute, util::DeviceExt},
 };
 
-use crate::sim::Sim;
+use crate::{gradient::Gradient, sim::Sim};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
@@ -257,18 +257,43 @@ impl GpuVisualizer {
         }
     }
 
-    pub fn update(&mut self, sim: &Sim) {
+    pub fn update(&mut self, sim: &Sim, color: &Gradient, back_color: [f32; 4]) {
         let (stack_a, stack_b) = sim.as_slices();
         let len = stack_a.len() + stack_b.len();
         self.mat = ortho(0., len as f32 * 2., len as f32, 0., -1., 1.);
 
         let mut vertices = vec![];
         let mut indices = vec![];
-        let mut next_index = 0;
+
+        {
+            let x = len as f32 * 2.;
+            let y = len as f32;
+            let z = -0.5;
+            vertices.push(Vertex {
+                position: [0.0, 0.0, z],
+                color: back_color,
+            });
+            vertices.push(Vertex {
+                position: [x, 0.0, z],
+                color: back_color,
+            });
+            vertices.push(Vertex {
+                position: [x, y, z],
+                color: back_color,
+            });
+            vertices.push(Vertex {
+                position: [0.0, y, z],
+                color: back_color,
+            });
+            indices.extend_from_slice(&[0, 1, 2, 2, 3, 0]);
+        }
+
+        let mut next_index = 4;
         for (i, num) in stack_a.iter().enumerate() {
             let i = i as f32;
             let num = num.normalized as f32;
-            let color = [1.0, 1.0, 1.0, 1.0];
+            let t = num / (len as f32 - 1.0);
+            let color = color.color_at(t);
             vertices.push(Vertex {
                 position: [0.0, i, 0.0],
                 color,
@@ -299,7 +324,8 @@ impl GpuVisualizer {
             let len = len as f32;
             let i = i as f32;
             let num = num.normalized as f32;
-            let color = [1.0, 1.0, 1.0, 1.0];
+            let t = num / (len - 1.);
+            let color = color.color_at(t);
             vertices.push(Vertex {
                 position: [len, i, 0.0],
                 color,
