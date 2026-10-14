@@ -1,24 +1,11 @@
-use std::fmt::Display;
-
 use eframe::egui::{self, Widget};
 use egui_alignments::center_horizontal;
 
-use crate::{benchmark::Benchmark, config::Config, visualizer::Visualizer};
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum AppMode {
-    Visualize,
-    Benchmark,
-}
-
-impl Display for AppMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AppMode::Visualize => write!(f, "Visualize"),
-            AppMode::Benchmark => write!(f, "Benchmark"),
-        }
-    }
-}
+use crate::{
+    benchmark::Benchmark,
+    config::{AppMode, Config},
+    visualizer::Visualizer,
+};
 
 pub struct App {
     app_mode: AppMode,
@@ -26,6 +13,7 @@ pub struct App {
     benchmark: Benchmark,
     config: Config,
     show_about: bool,
+    show_settings: bool,
 }
 
 impl App {
@@ -36,12 +24,14 @@ impl App {
             visualizer.update_path(path.clone());
             benchmark.update_path(path.clone());
         }
+        let app_mode = config.preferred_app_mode;
         Self {
             config,
-            app_mode: AppMode::Visualize,
+            app_mode,
             visualizer,
             benchmark,
             show_about: false,
+            show_settings: false,
         }
     }
 
@@ -51,10 +41,7 @@ impl App {
             self.visualizer.update_path(file.clone());
             self.benchmark.update_path(file.clone());
             self.config.push_swap_path = Some(file);
-            let res = self.config.save();
-            if let Err(e) = res {
-                log::error!("error while saving config: {e}");
-            }
+            self.config.save_with_log();
         }
     }
 
@@ -109,12 +96,59 @@ impl App {
         }
     }
 
+    fn show_settings(&mut self, ui: &mut egui::Ui) {
+        let res = egui::Modal::new("settings".into()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                center_horizontal(ui, |ui| {
+                    ui.heading("Settings");
+                })
+            });
+            ui.separator();
+            egui::ComboBox::from_label("Preferred app mode on startup")
+                .selected_text(self.config.preferred_app_mode.to_string())
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut self.config.preferred_app_mode,
+                        AppMode::Visualize,
+                        AppMode::Visualize.to_string(),
+                    );
+                    ui.selectable_value(
+                        &mut self.config.preferred_app_mode,
+                        AppMode::Benchmark,
+                        AppMode::Benchmark.to_string(),
+                    );
+                });
+
+            ui.add_space(10.);
+
+            ui.horizontal(|ui| {
+                let width = ui.available_width();
+                if egui::Button::new("Close")
+                    .min_size([width, 0.0].into())
+                    .ui(ui)
+                    .clicked()
+                {
+                    self.show_settings = false;
+                    self.config.save_with_log();
+                }
+            })
+        });
+        if res.should_close() {
+            self.show_settings = false;
+            self.config.save_with_log();
+        }
+    }
+
     fn app_ui(&mut self, ui: &mut egui::Ui) {
         egui::Panel::top("menu_bar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Select push_swap executable").clicked() {
                         self.select_executable();
+                    }
+                    ui.separator();
+                    if ui.button("Settings").clicked() {
+                        self.show_settings = true;
                     }
                     ui.separator();
                     if ui.button("Quit").clicked() {
@@ -189,6 +223,9 @@ impl eframe::App for App {
             self.app_ui(ui);
             if self.show_about {
                 self.show_about(ui);
+            }
+            if self.show_settings {
+                self.show_settings(ui);
             }
         } else {
             self.first_time_ui(ui);

@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf};
+use std::{fmt::Display, fs::File, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -51,11 +51,29 @@ impl Default for ColorProfile {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum AppMode {
+    #[default]
+    Visualize,
+    Benchmark,
+}
+
+impl Display for AppMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppMode::Visualize => write!(f, "Visualize"),
+            AppMode::Benchmark => write!(f, "Benchmark"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub push_swap_path: Option<PathBuf>,
     pub selected_color_profile: usize,
     pub color_profiles: Vec<ColorProfile>,
+    pub preferred_app_mode: AppMode,
 }
 
 fn load_config() -> Result<Config, Box<dyn std::error::Error>> {
@@ -90,6 +108,12 @@ impl Config {
         serde_json::to_writer_pretty(file, &config)?;
         log::info!("config saved!");
         Ok(())
+    }
+
+    pub fn save_with_log(&self) {
+        if let Err(e) = self.save() {
+            log::error!("error while saving config: {e}");
+        }
     }
 
     pub fn try_get_current_profile(&self) -> Option<&ColorProfile> {
