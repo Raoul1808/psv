@@ -51,7 +51,7 @@ impl App {
             self.config.push_swap_path = Some(file);
             let res = self.config.save();
             if let Err(e) = res {
-                eprintln!("error while saving config: {e}");
+                log::error!("error while saving config: {e}");
             }
         }
     }

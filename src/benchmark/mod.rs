@@ -85,18 +85,33 @@ impl Benchmark {
             self.num_threads,
             self.sorting_strategy,
         );
+        log::info!(
+            "running {} sorting pass(es) on {} thread(s)",
+            self.test_amount,
+            self.num_threads
+        );
         self.job_manager = Some(jobs);
     }
 
     fn poll_jobs(&mut self) {
         if let Some(manager) = self.job_manager.as_mut() {
             while let Some(res) = manager.try_get_result() {
+                match &res.ty {
+                    JobResultType::Failure { .. } => {
+                        log::warn!("job {} did not sort numbers", res.id);
+                    }
+                    JobResultType::Error(e) => {
+                        log::error!("job {} ran into an error: {e}", res.id);
+                    }
+                    _ => {}
+                }
                 self.job_results.push(res);
             }
         }
         if self.job_manager.as_ref().is_some_and(|m| m.is_done()) {
             let jobs = self.job_manager.take().unwrap();
             jobs.finalize();
+            log::info!("jobs done");
             self.finished_jobs();
         }
     }

@@ -68,7 +68,14 @@ const CONFIG_PATH: &str = ".psv2conf.json";
 
 impl Config {
     pub fn load_or_default() -> Self {
-        let mut config = load_config().unwrap_or_default();
+        let mut config = match load_config() {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("config failed to load: {e}");
+                log::warn!("using default config values as fallback");
+                Config::default()
+            }
+        };
         config.color_profiles.insert(0, ColorProfile::default());
         config.selected_color_profile = config
             .selected_color_profile
@@ -81,6 +88,7 @@ impl Config {
         let mut config = self.clone();
         config.color_profiles.retain(|c| !c.is_default);
         serde_json::to_writer_pretty(file, &config)?;
+        log::info!("config saved!");
         Ok(())
     }
 

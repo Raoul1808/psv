@@ -46,8 +46,10 @@ impl Visuals {
             });
             self.need_redraw |= profile.colors.ui(ui);
         });
-        if ui.button("Save Config").clicked() {
-            let _ = config.save();
+        if ui.button("Save Config").clicked()
+            && let Err(e) = config.save()
+        {
+            log::error!("error while saving config: {e}");
         }
     }
 }

@@ -158,7 +158,7 @@ impl Loader {
                     ));
                 }
                 Err(e) => {
-                    eprintln!("{e}");
+                    log::error!("error during push_swap execution: {e}");
                     self.run_msg = Some(format!("Execution failed: {e}"));
                 }
             }
@@ -209,6 +209,7 @@ impl Loader {
                             self.exec = Some(exec);
                         }
                         Err(e) => {
+                            log::error!("failed to get numbers: {e}");
                             self.run_msg = Some(e.to_string());
                         }
                     };

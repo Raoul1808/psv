@@ -19,6 +19,7 @@ pub struct PushSwapExec {
 
 impl PushSwapExec {
     pub fn new(path: PathBuf, numbers: Vec<i32>, sorting_strategy: SortingStrategy) -> Self {
+        log::info!("running push_swap with {} numbers", numbers.len());
         let cancellation_token = CancellationToken::new();
         let token_clone = cancellation_token.clone();
         let (sender, receiver) = channel();
@@ -57,6 +58,7 @@ impl PushSwapExec {
     }
 
     pub fn finish(mut self) -> Result<ExecResult, ExecError> {
+        log::info!("finished running push_swap");
         self.handle
             .join()
             .expect("something very wrong happened with joining the thread!!!");

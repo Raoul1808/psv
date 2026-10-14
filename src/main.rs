@@ -1,3 +1,5 @@
+use simple_logger::SimpleLogger;
+
 use crate::{app::App, config::Config};
 
 mod app;
@@ -11,6 +13,12 @@ mod sim;
 mod visualizer;
 
 fn main() -> eframe::Result {
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Warn)
+        .with_module_level("psv", log::LevelFilter::Info)
+        .init()
+        .expect("failed to setup logger");
+
     let native_options = eframe::NativeOptions::default();
 
     let config = Config::load_or_default();
