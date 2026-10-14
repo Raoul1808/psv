@@ -73,18 +73,6 @@ pub fn run_push_swap(
     'read_loop: loop {
         poll.poll(&mut events, Some(Duration::from_millis(50)))?;
 
-        if let Some(status) = cmd.try_wait()? {
-            if let Some(status) = status.code()
-                && status != 0
-            {
-                return Err(ExecError::Code(status));
-            }
-            if let Some(signal) = status.signal() {
-                return Err(ExecError::Signal(signal));
-            }
-            break;
-        }
-
         for event in &events {
             if event.token() == Token(0) && event.is_readable() {
                 let mut read = vec![0; 1024];
@@ -110,6 +98,18 @@ pub fn run_push_swap(
                     }
                 }
             }
+        }
+
+        if let Some(status) = cmd.try_wait()? {
+            if let Some(status) = status.code()
+                && status != 0
+            {
+                return Err(ExecError::Code(status));
+            }
+            if let Some(signal) = status.signal() {
+                return Err(ExecError::Signal(signal));
+            }
+            break;
         }
 
         if cancellation_token.is_cancelled() {
