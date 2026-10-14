@@ -37,8 +37,7 @@ impl App {
         }
         Self {
             config,
-            // TODO: CHANGE IT BACK TO VISUALIZE
-            app_mode: AppMode::Benchmark,
+            app_mode: AppMode::Visualize,
             visualizer,
             benchmark,
         }
