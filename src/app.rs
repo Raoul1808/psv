@@ -25,6 +25,7 @@ pub struct App {
     visualizer: Visualizer,
     benchmark: Benchmark,
     config: Config,
+    show_about: bool,
 }
 
 impl App {
@@ -40,6 +41,7 @@ impl App {
             app_mode: AppMode::Visualize,
             visualizer,
             benchmark,
+            show_about: false,
         }
     }
 
@@ -77,6 +79,36 @@ impl App {
         });
     }
 
+    fn show_about(&mut self, ui: &mut egui::Ui) {
+        let res = egui::Modal::new("about".into()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                center_horizontal(ui, |ui| {
+                    ui.heading("psv");
+                })
+            });
+            ui.separator();
+            ui.label(format!("Version: {}", env!("CARGO_PKG_VERSION")));
+            ui.label("Yet another push_swap visualizer");
+            ui.label("Made in Rust using eframe/egui");
+
+            ui.add_space(10.);
+
+            let width = ui.available_width();
+            ui.horizontal(|ui| {
+                if egui::Button::new("Close")
+                    .min_size([width, 0.0].into())
+                    .ui(ui)
+                    .clicked()
+                {
+                    self.show_about = false;
+                }
+            });
+        });
+        if res.should_close() {
+            self.show_about = false;
+        }
+    }
+
     fn app_ui(&mut self, ui: &mut egui::Ui) {
         egui::Panel::top("menu_bar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
@@ -101,7 +133,7 @@ impl App {
                     ui.add_enabled(false, egui::Button::new("TODO: add button"));
                     ui.separator();
                     if ui.button("About psv").clicked() {
-                        println!("About modal!!");
+                        self.show_about = true;
                     }
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
@@ -152,6 +184,9 @@ impl eframe::App for App {
         let path_set = self.config.push_swap_path.is_some();
         if path_set {
             self.app_ui(ui);
+            if self.show_about {
+                self.show_about(ui);
+            }
         } else {
             self.first_time_ui(ui);
         }
