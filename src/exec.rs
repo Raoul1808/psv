@@ -76,6 +76,8 @@ pub fn run_push_swap(
         for event in &events {
             if event.token() == Token(0) && event.is_readable() {
                 let mut read = vec![0; 1024];
+
+                // this loop exists purely so we can read again if interrupted
                 loop {
                     match stdout.read(&mut read[0..1024]) {
                         Ok(0) => {
@@ -83,6 +85,7 @@ pub fn run_push_swap(
                         }
                         Ok(n) => {
                             buffer.extend_from_slice(&read[0..n]);
+                            break;
                         }
                         Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                             break;

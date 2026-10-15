@@ -86,6 +86,7 @@ impl JobManager {
     }
 
     pub fn cancel(&self) {
+        log::info!("sending cancel signal");
         self.cancellation_token.cancel();
     }
 
