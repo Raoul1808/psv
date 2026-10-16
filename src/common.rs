@@ -27,7 +27,7 @@ impl SortingStrategy {
             Self::Simple => Some("--simple"),
             Self::Medium => Some("--medium"),
             Self::Complex => Some("--complex"),
-            Self::Adaptive => Some("--adaptative"),
+            Self::Adaptive => Some("--adaptive"),
         }
     }
 
