@@ -52,6 +52,28 @@ impl Default for ColorProfile {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum VisualizerSideViewMode {
+    #[default]
+    None,
+    Details,
+    Visuals,
+}
+
+impl VisualizerSideViewMode {
+    pub const ALL: [Self; 3] = [Self::None, Self::Details, Self::Visuals];
+}
+
+impl Display for VisualizerSideViewMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Details => write!(f, "Details"),
+            Self::Visuals => write!(f, "Visuals"),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum AppMode {
     #[default]
     Visualize,
@@ -74,6 +96,7 @@ pub struct Config {
     pub selected_color_profile: usize,
     pub color_profiles: Vec<ColorProfile>,
     pub preferred_app_mode: AppMode,
+    pub preferred_side_panel: VisualizerSideViewMode,
 }
 
 fn load_config() -> Result<Config, Box<dyn std::error::Error>> {

@@ -3,7 +3,7 @@ use egui_alignments::center_horizontal;
 
 use crate::{
     benchmark::Benchmark,
-    config::{AppMode, Config},
+    config::{AppMode, Config, VisualizerSideViewMode},
     visualizer::Visualizer,
 };
 
@@ -18,7 +18,7 @@ pub struct App {
 
 impl App {
     pub fn new(cc: &eframe::CreationContext, config: Config) -> Self {
-        let mut visualizer = Visualizer::new(cc);
+        let mut visualizer = Visualizer::new(cc, &config);
         let mut benchmark = Benchmark::new();
         if let Some(path) = config.push_swap_path.clone() {
             visualizer.update_path(path.clone());
@@ -117,6 +117,18 @@ impl App {
                         AppMode::Benchmark,
                         AppMode::Benchmark.to_string(),
                     );
+                });
+
+            egui::ComboBox::from_label("Preferred visualizer side view on startup")
+                .selected_text(self.config.preferred_side_panel.to_string())
+                .show_ui(ui, |ui| {
+                    for mode in VisualizerSideViewMode::ALL {
+                        ui.selectable_value(
+                            &mut self.config.preferred_side_panel,
+                            mode,
+                            mode.to_string(),
+                        );
+                    }
                 });
 
             ui.add_space(10.);

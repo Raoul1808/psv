@@ -6,7 +6,7 @@ use std::{
 use eframe::egui;
 
 use crate::{
-    config::{ColorProfile, Config},
+    config::{ColorProfile, Config, VisualizerSideViewMode},
     sim::Sim,
     visualizer::{
         controls::{Controls, PlayState},
@@ -24,13 +24,6 @@ mod gpu;
 mod loader;
 mod visuals;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SideViewMode {
-    None,
-    Visuals,
-    Details,
-}
-
 pub struct Visualizer {
     gpu_view: GpuVisualizer,
     controls: Controls,
@@ -41,11 +34,11 @@ pub struct Visualizer {
     need_redraw: bool,
     last_instant: Instant,
     duration_accumulated: Duration,
-    side_view_mode: SideViewMode,
+    side_view_mode: VisualizerSideViewMode,
 }
 
 impl Visualizer {
-    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>) -> Self {
+    pub fn new<'a>(cc: &'a eframe::CreationContext<'a>, config: &Config) -> Self {
         let gpu_view = GpuVisualizer::new(cc);
         let sim = Sim::default();
         Self {
@@ -58,7 +51,7 @@ impl Visualizer {
             need_redraw: true,
             last_instant: Instant::now(),
             duration_accumulated: Duration::default(),
-            side_view_mode: SideViewMode::None,
+            side_view_mode: config.preferred_side_panel,
         }
     }
 
@@ -151,7 +144,7 @@ impl Visualizer {
                 self.loader.ui(ui);
             });
         match &self.side_view_mode {
-            SideViewMode::Visuals => {
+            VisualizerSideViewMode::Visuals => {
                 egui::Panel::right("visualizer_visuals")
                     .resizable(false)
                     .show(ui, |ui| {
@@ -159,7 +152,7 @@ impl Visualizer {
                         self.need_redraw |= self.visuals.need_redraw();
                     });
             }
-            SideViewMode::Details => {
+            VisualizerSideViewMode::Details => {
                 egui::Panel::right("visualizer_details")
                     .resizable(false)
                     .show(ui, |ui| {
@@ -200,7 +193,7 @@ impl Visualizer {
             if ui
                 .button(format!(
                     "Visuals {}",
-                    if self.side_view_mode == SideViewMode::Visuals {
+                    if self.side_view_mode == VisualizerSideViewMode::Visuals {
                         "✔️"
                     } else {
                         ""
@@ -208,16 +201,16 @@ impl Visualizer {
                 ))
                 .clicked()
             {
-                view = if self.side_view_mode == SideViewMode::Visuals {
-                    Some(SideViewMode::None)
+                view = if self.side_view_mode == VisualizerSideViewMode::Visuals {
+                    Some(VisualizerSideViewMode::None)
                 } else {
-                    Some(SideViewMode::Visuals)
+                    Some(VisualizerSideViewMode::Visuals)
                 };
             }
             if ui
                 .button(format!(
                     "Details {}",
-                    if self.side_view_mode == SideViewMode::Details {
+                    if self.side_view_mode == VisualizerSideViewMode::Details {
                         "✔️"
                     } else {
                         ""
@@ -225,10 +218,10 @@ impl Visualizer {
                 ))
                 .clicked()
             {
-                view = if self.side_view_mode == SideViewMode::Details {
-                    Some(SideViewMode::None)
+                view = if self.side_view_mode == VisualizerSideViewMode::Details {
+                    Some(VisualizerSideViewMode::None)
                 } else {
-                    Some(SideViewMode::Details)
+                    Some(VisualizerSideViewMode::Details)
                 };
             }
             if let Some(view) = view {
