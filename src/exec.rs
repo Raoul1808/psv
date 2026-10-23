@@ -115,6 +115,8 @@ pub fn run_push_swap(
             cmd.wait()?;
             return Err(ExecError::Cancelled);
         }
+
+        std::thread::sleep(Duration::from_millis(5));
     }
 
     cmd.wait()?;
