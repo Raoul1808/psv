@@ -162,11 +162,11 @@ impl Plot {
             let ui = &mut ui_cols[0];
             ui.label(format!("Average: {}", self.metrics.avg));
             ui.separator();
-            ui.label(format!("Min: {}", self.metrics.min));
-            ui.label(format!("Quartile 1: {}", self.metrics.quart1));
-            ui.label(format!("Median: {}", self.metrics.med));
-            ui.label(format!("Quartile 3: {}", self.metrics.quart3));
-            ui.label(format!("Max: {}", self.metrics.max));
+            ui.label(format!("Max = {}", self.metrics.max));
+            ui.label(format!("Quartile 3 = {}", self.metrics.quart3));
+            ui.label(format!("Median = {}", self.metrics.med));
+            ui.label(format!("Quartile 1 = {}", self.metrics.quart1));
+            ui.label(format!("Min = {}", self.metrics.min));
             ui.separator();
             ui.label(format!("Deviation: {}", self.metrics.deviation));
 
