@@ -1,12 +1,11 @@
 use std::{
-    io::{self, ErrorKind, Read},
+    io::{self, Read},
     os::{fd::AsRawFd, unix::process::ExitStatusExt},
     path::PathBuf,
     process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
-use mio::{Events, Interest, Poll, Token, unix::SourceFd};
 use thiserror::Error;
 
 use crate::{
@@ -47,6 +46,13 @@ pub struct ExecResult {
     pub instructions: Vec<PushSwapInstruction>,
 }
 
+fn set_nonblocking_fd(fd: std::os::unix::io::RawFd) {
+    unsafe {
+        let flags = libc::fcntl(fd, libc::F_GETFL);
+        libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
+    }
+}
+
 pub fn run_push_swap(
     path: PathBuf,
     numbers: Vec<i32>,
@@ -55,7 +61,6 @@ pub fn run_push_swap(
 ) -> Result<ExecResult, ExecError> {
     let start = Instant::now();
 
-    let mut poll = Poll::new()?;
     let args = numbers.iter().map(|i| i.to_string());
     let mut cmd = Command::new(path);
     if let Some(arg) = sorting_strategy.to_arg() {
@@ -63,42 +68,32 @@ pub fn run_push_swap(
     }
     let mut cmd = cmd.args(args).stdout(Stdio::piped()).spawn()?;
     let mut stdout = cmd.stdout.take().expect("what the fuck???");
-    let mut stdout_fd = SourceFd(&stdout.as_raw_fd());
-    poll.registry()
-        .register(&mut stdout_fd, Token(0), Interest::READABLE)?;
+    set_nonblocking_fd(stdout.as_raw_fd());
 
     let mut buffer = vec![];
-    let mut events = Events::with_capacity(1024);
+
+    const BLOCK_SIZE: usize = 65535;
 
     'read_loop: loop {
-        poll.poll(&mut events, Some(Duration::from_millis(50)))?;
-
-        for event in &events {
-            if event.token() == Token(0) && event.is_readable() {
-                let mut read = vec![0; 1024];
-
-                // this loop exists purely so we can read again if interrupted
-                loop {
-                    match stdout.read(&mut read[0..1024]) {
-                        Ok(0) => {
-                            break 'read_loop;
-                        }
-                        Ok(n) => {
-                            buffer.extend_from_slice(&read[0..n]);
-                            break;
-                        }
-                        Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
-                            break;
-                        }
-                        Err(ref e) if e.kind() == ErrorKind::Interrupted => {
-                            continue;
-                        }
-                        Err(e) => {
-                            cmd.kill()?;
-                            cmd.wait()?;
-                            return Err(e.into());
-                        }
-                    }
+        loop {
+            let mut buf = vec![0; BLOCK_SIZE];
+            match stdout.read(&mut buf[0..BLOCK_SIZE]) {
+                Ok(0) => {
+                    break 'read_loop;
+                }
+                Ok(n) => {
+                    buffer.extend_from_slice(&buf[0..n]);
+                }
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => {
+                    continue;
+                }
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    break;
+                }
+                Err(e) => {
+                    cmd.kill()?;
+                    cmd.wait()?;
+                    return Err(e.into());
                 }
             }
         }

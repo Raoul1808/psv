@@ -15,7 +15,7 @@ egui_alignments = "0.3.9"
 egui_extras = "0.36.2"
 egui_plot = "0.37.0"
 log = "0.4.34"
-mio = { version = "1.2.4", features = ["os-poll", "os-ext"] }
+libc = "0.2.191"
 rand = "0.10.3"
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }
