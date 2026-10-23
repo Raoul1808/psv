@@ -1,5 +1,9 @@
+use std::fmt::Write;
+
 use eframe::egui;
 use egui_plot::{BoxElem, BoxPlot, BoxSpread, Legend, Span, VLine};
+
+use crate::benchmark::{JobResult, JobResultType};
 
 #[derive(Debug, Default, Clone, Copy)]
 struct Metrics {
@@ -15,6 +19,7 @@ struct Metrics {
 pub struct Plot {
     metrics: Metrics,
     results: Vec<usize>,
+    errors: Vec<JobResult>,
     dirty: bool,
 }
 
@@ -23,6 +28,7 @@ impl Plot {
         Self {
             metrics: Metrics::default(),
             results: vec![],
+            errors: vec![],
             dirty: false,
         }
     }
@@ -30,6 +36,7 @@ impl Plot {
     pub fn clear(&mut self) {
         self.metrics = Metrics::default();
         self.results.clear();
+        self.errors.clear();
         self.dirty = false;
     }
 
@@ -103,8 +110,15 @@ impl Plot {
         self.metrics = metrics;
     }
 
-    pub fn add_result(&mut self, result: usize) {
-        self.results.push(result);
+    pub fn add_result(&mut self, result: JobResult) {
+        match &result.ty {
+            JobResultType::Success { instructions } => {
+                self.results.push(*instructions);
+            }
+            _ => {
+                self.errors.push(result);
+            }
+        }
         self.dirty = true;
     }
 
@@ -150,6 +164,68 @@ impl Plot {
             });
     }
 
+    fn show_failed_jobs(&mut self, ui: &mut egui::Ui) {
+        let available_height = ui.available_height();
+        let text_height = egui::TextStyle::Body
+            .resolve(ui.style())
+            .size
+            .max(ui.spacing().interact_size.y);
+        egui_extras::TableBuilder::new(ui)
+            .striped(true)
+            .resizable(false)
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::auto())
+            .column(egui_extras::Column::remainder())
+            .min_scrolled_height(0.0)
+            .max_scroll_height(available_height)
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong(" ");
+                });
+                header.col(|ui| {
+                    ui.strong("Job ID");
+                });
+                header.col(|ui| {
+                    ui.strong("Context");
+                });
+            })
+            .body(|ui| {
+                ui.rows(text_height, self.errors.len(), |mut row| {
+                    let row_index = row.index();
+                    let res = &self.errors[row_index];
+                    row.col(|ui| {
+                        let label = match &res.ty {
+                            JobResultType::Failure { .. } => "⚠️",
+                            JobResultType::Error(_) => "❌",
+                            JobResultType::Success { .. } => "",
+                        };
+                        ui.label(label);
+                    });
+                    row.col(|ui| {
+                        ui.label(res.id.to_string());
+                    });
+                    row.col(|ui| match &res.ty {
+                        JobResultType::Failure { numbers } => {
+                            ui.label("did not sort numbers");
+                            if ui.button("Copy numbers").clicked() {
+                                let nums = numbers.iter().fold(String::new(), |mut acc, n| {
+                                    let _ = write!(acc, "{n} ");
+                                    acc
+                                });
+                                let nums = nums.trim_end();
+                                ui.copy_text(nums.into());
+                            }
+                        }
+                        JobResultType::Error(e) => {
+                            ui.label(format!("ran into an error: {e}"));
+                        }
+                        JobResultType::Success { .. } => {}
+                    });
+                });
+            });
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         if self.results.is_empty() {
             return;
@@ -169,6 +245,16 @@ impl Plot {
             ui.label(format!("Min = {}", self.metrics.min));
             ui.separator();
             ui.label(format!("Deviation: {}", self.metrics.deviation));
+
+            if !self.errors.is_empty() {
+                ui.separator();
+                let success_rate = 100. * self.results.len() as f64
+                    / (self.results.iter().len() + self.errors.len()) as f64;
+                ui.label(format!("Program success rate: {success_rate}%"));
+                ui.collapsing("Errors", |ui| {
+                    self.show_failed_jobs(ui);
+                });
+            }
 
             let ui = &mut ui_cols[1];
             self.draw_plot(ui);

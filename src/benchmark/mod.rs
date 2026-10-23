@@ -1,4 +1,4 @@
-use std::{fmt::Write, path::PathBuf};
+use std::path::PathBuf;
 
 use eframe::egui::{self, Widget};
 
@@ -27,7 +27,6 @@ const MIN_THREADS: usize = 1;
 pub struct Benchmark {
     push_swap_path: PathBuf,
     job_manager: Option<JobManager>,
-    job_results: Vec<JobResult>,
     numbers: usize,
     test_amount: usize,
     num_threads: usize,
@@ -40,7 +39,6 @@ impl Benchmark {
         Self {
             push_swap_path: PathBuf::new(),
             job_manager: None,
-            job_results: vec![],
             numbers: 10,
             test_amount: 10,
             num_threads: 4,
@@ -54,7 +52,6 @@ impl Benchmark {
             jobs.cancel();
             jobs.finalize();
         }
-        self.job_results.clear();
         self.numbers = 10;
         self.test_amount = 10;
         self.num_threads = 4;
@@ -71,7 +68,6 @@ impl Benchmark {
     }
 
     fn send_jobs(&mut self) {
-        self.job_results.clear();
         self.plot_result.clear();
         let jobs = JobManager::run(
             self.push_swap_path.clone(),
@@ -94,16 +90,13 @@ impl Benchmark {
                 match &res.ty {
                     JobResultType::Failure { .. } => {
                         log::warn!("job {} did not sort numbers", res.id);
-                        self.job_results.push(res);
                     }
                     JobResultType::Error(e) => {
                         log::error!("job {} ran into an error: {e}", res.id);
-                        self.job_results.push(res);
                     }
-                    JobResultType::Success { instructions } => {
-                        self.plot_result.add_result(*instructions);
-                    }
+                    JobResultType::Success { .. } => {}
                 }
+                self.plot_result.add_result(res);
             }
         }
         if self.job_manager.as_ref().is_some_and(|m| m.is_done()) {
@@ -185,29 +178,6 @@ impl Benchmark {
 
             ui.separator();
             self.plot_result.ui(ui);
-
-            for job in &self.job_results {
-                let id = job.id;
-                match &job.ty {
-                    JobResultType::Success { .. } => {}
-                    JobResultType::Failure { numbers } => {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("Job {id} failed."));
-                            if ui.button("Copy numbers").clicked() {
-                                let nums = numbers.iter().fold(String::new(), |mut acc, n| {
-                                    let _ = write!(acc, "{n} ");
-                                    acc
-                                });
-                                let nums = nums.trim_end();
-                                ui.copy_text(nums.into());
-                            }
-                        });
-                    }
-                    JobResultType::Error(e) => {
-                        ui.label(format!("Job {id} ran into an error: {e}"));
-                    }
-                }
-            }
         });
     }
 
