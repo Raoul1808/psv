@@ -227,7 +227,7 @@ impl Plot {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        if self.results.is_empty() {
+        if self.results.is_empty() && self.errors.is_empty() {
             return;
         }
         if self.dirty {

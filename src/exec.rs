@@ -119,7 +119,15 @@ pub fn run_push_swap(
         std::thread::sleep(Duration::from_millis(5));
     }
 
-    cmd.wait()?;
+    let status = cmd.wait()?;
+    if let Some(status) = status.code()
+        && status != 0
+    {
+        return Err(ExecError::Code(status));
+    }
+    if let Some(signal) = status.signal() {
+        return Err(ExecError::Signal(signal));
+    }
 
     let string = String::from_utf8(buffer).map_err(|_| ExecError::Utf8)?;
 
