@@ -21,8 +21,9 @@ struct JobResult {
     ty: JobResultType,
 }
 
-const THREADS_WARNING_THRESHOLD: usize = 8;
+const THREADS_WARNING_THRESHOLD: usize = 16;
 const MIN_THREADS: usize = 1;
+const MAX_THREADS: usize = 255;
 
 pub struct Benchmark {
     push_swap_path: PathBuf,
@@ -136,7 +137,7 @@ impl Benchmark {
             ui.horizontal(|ui| {
                 ui.label("Run on");
                 egui::DragValue::new(&mut self.num_threads)
-                    .range(MIN_THREADS..=u16::MAX as usize)
+                    .range(MIN_THREADS..=MAX_THREADS)
                     .ui(ui);
                 ui.label(format!(
                     "thread{}",
@@ -147,9 +148,17 @@ impl Benchmark {
             if self.num_threads > THREADS_WARNING_THRESHOLD {
                 ui.label(
                     egui::RichText::new(
-                        "⚠️ Setting this to a high amount can freeze your computer!",
+                        "⚠️ Setting this to a high amount can stress your computer and increase the execution error rate!",
                     )
                     .color(egui::Color32::from_rgb(255, 192, 0)),
+                );
+            }
+            if self.num_threads == MAX_THREADS {
+                ui.label(
+                    egui::RichText::new(
+                        "⚠️ bro u serious rn?",
+                    )
+                    .color(egui::Color32::from_rgb(255, 64, 0)),
                 );
             }
             match self.job_manager.as_ref() {
