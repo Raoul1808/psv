@@ -219,9 +219,6 @@ impl Loader {
                     let exec = PushSwapExec::new(path, self.numbers.clone(), self.sorting_strategy);
                     self.exec = Some(exec);
                 }
-                if let Some(msg) = self.run_msg.as_ref() {
-                    ui.label(msg);
-                }
             }
         }
         // TODO: reorder UI
@@ -233,6 +230,11 @@ impl Loader {
             let nums = nums.trim_end();
             ui.copy_text(nums.into());
             log::info!("copied numbers to clipboard!");
+        }
+        if self.exec.is_none()
+            && let Some(msg) = self.run_msg.as_ref()
+        {
+            ui.label(msg);
         }
     }
 }
