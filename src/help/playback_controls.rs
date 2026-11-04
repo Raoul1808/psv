@@ -35,9 +35,11 @@ impl PlaybackControlsSection {
                     self.counter += 1;
                     self.duration_accumulated += exec_interval;
                 }
-                self.duration_accumulated -= catching_duration;
                 if self.counter == u16::MAX {
                     self.play_state = PlayState::Stopped;
+                    self.duration_accumulated = Duration::ZERO;
+                } else {
+                    self.duration_accumulated -= catching_duration;
                 }
                 ui.request_repaint();
             }
@@ -49,9 +51,11 @@ impl PlaybackControlsSection {
                     self.counter -= 1;
                     self.duration_accumulated += exec_interval;
                 }
-                self.duration_accumulated -= catching_duration;
                 if self.counter == 0 {
                     self.play_state = PlayState::Stopped;
+                    self.duration_accumulated = Duration::ZERO;
+                } else {
+                    self.duration_accumulated -= catching_duration;
                 }
                 ui.request_repaint();
             }
