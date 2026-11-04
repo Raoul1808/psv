@@ -64,7 +64,7 @@ impl Help {
             size.height as f32 - margin * 2.,
         );
 
-        egui::Window::new("Help")
+        egui::Window::new("Help Manual")
             .open(&mut self.is_open)
             .order(egui::Order::Foreground)
             .collapsible(false)

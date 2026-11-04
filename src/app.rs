@@ -184,7 +184,7 @@ impl App {
                         egui::Label::new(format!("psv v{}", env!("CARGO_PKG_VERSION"))),
                     );
                     ui.separator();
-                    if ui.button("Help").clicked() {
+                    if ui.button("Help Manual").clicked() {
                         self.help.open();
                     }
                     ui.separator();
