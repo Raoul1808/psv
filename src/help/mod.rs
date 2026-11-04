@@ -1,8 +1,10 @@
 use eframe::egui;
 
 mod app_modes;
+mod details_view;
 mod playback_controls;
 mod visualizer;
+mod visuals_view;
 
 trait HelpSection {
     fn section_name(&self) -> &str;
@@ -35,6 +37,8 @@ impl Help {
             Box::new(app_modes::AppModesSection),
             Box::new(visualizer::VisualizerSection),
             Box::new(playback_controls::PlaybackControlsSection::new()),
+            Box::new(details_view::DetailsViewSection),
+            Box::new(visuals_view::VisualsViewSection),
         ];
         Self {
             current_section: 0,
