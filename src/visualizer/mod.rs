@@ -115,7 +115,7 @@ impl Visualizer {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{e}");
+                    log::error!("failed to create sim: {e}");
                 }
             }
         }

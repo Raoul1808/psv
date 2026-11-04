@@ -232,7 +232,7 @@ impl Loader {
             });
             let nums = nums.trim_end();
             ui.copy_text(nums.into());
-            println!("Copied numbers to clipboard!");
+            log::info!("copied numbers to clipboard!");
         }
     }
 }
