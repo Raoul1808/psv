@@ -4,6 +4,7 @@ use egui_alignments::center_horizontal;
 use crate::{
     benchmark::Benchmark,
     config::{AppMode, Config, VisualizerSideViewMode},
+    help::Help,
     visualizer::Visualizer,
 };
 
@@ -11,6 +12,7 @@ pub struct App {
     app_mode: AppMode,
     visualizer: Visualizer,
     benchmark: Benchmark,
+    help: Help,
     config: Config,
     show_about: bool,
     show_settings: bool,
@@ -30,6 +32,7 @@ impl App {
             app_mode,
             visualizer,
             benchmark,
+            help: Help::new(),
             show_about: false,
             show_settings: false,
         }
@@ -181,6 +184,10 @@ impl App {
                         egui::Label::new(format!("psv v{}", env!("CARGO_PKG_VERSION"))),
                     );
                     ui.separator();
+                    if ui.button("Help").clicked() {
+                        self.help.open();
+                    }
+                    ui.separator();
                     if ui.button("About psv").clicked() {
                         self.show_about = true;
                     }
@@ -229,7 +236,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn ui(&mut self, ui: &mut eframe::egui::Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut eframe::egui::Ui, frame: &mut eframe::Frame) {
         let path_set = self.config.push_swap_path.is_some();
         if path_set {
             self.app_ui(ui);
@@ -238,6 +245,9 @@ impl eframe::App for App {
             }
             if self.show_settings {
                 self.show_settings(ui);
+            }
+            if self.help.is_open() {
+                self.help.ui(ui, frame);
             }
         } else {
             self.first_time_ui(ui);

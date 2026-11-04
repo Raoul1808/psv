@@ -9,6 +9,7 @@ mod common;
 mod config;
 mod exec;
 mod gradient;
+mod help;
 mod sim;
 mod visualizer;
 
