@@ -9,11 +9,7 @@ use crate::{
     config::{ColorProfile, Config, VisualizerSideViewMode},
     sim::Sim,
     visualizer::{
-        controls::{Controls, PlayState},
-        details::Details,
-        gpu::GpuVisualizer,
-        loader::Loader,
-        visuals::Visuals,
+        controls::Controls, details::Details, gpu::GpuVisualizer, loader::Loader, visuals::Visuals,
     },
 };
 
@@ -23,6 +19,8 @@ mod exec;
 mod gpu;
 mod loader;
 mod visuals;
+
+pub use controls::PlayState;
 
 pub struct Visualizer {
     gpu_view: GpuVisualizer,

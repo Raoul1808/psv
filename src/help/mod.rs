@@ -1,53 +1,45 @@
 use eframe::egui;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum HelpSection {
-    Start,
-    Visualizer,
-    Benchmarking,
-    ReadingBenchmarks,
+mod app_modes;
+mod playback_controls;
+mod visualizer;
+
+trait HelpSection {
+    fn section_name(&self) -> &str;
+    fn section_ui(&mut self, ui: &mut egui::Ui);
 }
 
-impl HelpSection {
-    const ALL: &[Self] = &[
-        Self::Start,
-        Self::Visualizer,
-        Self::Benchmarking,
-        Self::ReadingBenchmarks,
-    ];
+struct StartSection;
 
-    pub fn section_name(&self) -> &str {
-        match self {
-            Self::Start => "Start",
-            Self::Visualizer => "Visualizer",
-            Self::Benchmarking => "Benchmarking",
-            Self::ReadingBenchmarks => "Reading benchmark results",
-        }
+impl HelpSection for StartSection {
+    fn section_name(&self) -> &str {
+        "Start"
     }
 
-    pub fn section_ui(&self, ui: &mut egui::Ui) {
-        match self {
-            Self::Start => {
-                ui.label("Welcome to the help section!");
-                ui.label("Select a section on the left to get started.");
-            }
-            Self::Visualizer => {}
-            Self::Benchmarking => {}
-            Self::ReadingBenchmarks => {}
-        }
+    fn section_ui(&mut self, ui: &mut egui::Ui) {
+        ui.label("Welcome to the help section!");
+        ui.label("Select a section on the left to get started.");
     }
 }
 
 pub struct Help {
     current_section: usize,
     is_open: bool,
+    sections: Vec<Box<dyn HelpSection>>,
 }
 
 impl Help {
     pub fn new() -> Self {
+        let sections: Vec<Box<dyn HelpSection>> = vec![
+            Box::new(StartSection),
+            Box::new(app_modes::AppModesSection),
+            Box::new(visualizer::VisualizerSection),
+            Box::new(playback_controls::PlaybackControlsSection::new()),
+        ];
         Self {
             current_section: 0,
             is_open: false,
+            sections,
         }
     }
 
@@ -63,6 +55,11 @@ impl Help {
         let size = eframe.winit_window().expect("no window???").inner_size();
         let margin = 60.;
 
+        let size = egui::vec2(
+            size.width as f32 - margin * 2.,
+            size.height as f32 - margin * 2.,
+        );
+
         egui::Window::new("Help")
             .open(&mut self.is_open)
             .order(egui::Order::Foreground)
@@ -73,22 +70,25 @@ impl Help {
                 egui::Frame::window(ui.style()).fill(ui.visuals().widgets.open.weak_bg_fill),
             )
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-            .fixed_size((
-                size.width as f32 - margin * 2.,
-                size.height as f32 - margin * 2.,
-            ))
-            .fixed_pos(egui::pos2(size.width as f32 / 2., size.height as f32 / 2.))
+            .min_size(size)
+            .max_size(size)
+            .fixed_pos(egui::pos2(size.x / 2., size.y / 2.))
             .show(ui, |ui| {
                 egui::Panel::left("help_section").show(ui, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        for (i, s) in HelpSection::ALL.iter().enumerate() {
+                        for (i, s) in self.sections.iter().enumerate() {
                             ui.selectable_value(&mut self.current_section, i, s.section_name());
                         }
                     });
                 });
                 egui::CentralPanel::default_margins().show(ui, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        HelpSection::ALL[self.current_section].section_ui(ui);
+                        ui.with_layout(
+                            egui::Layout::top_down(egui::Align::Min).with_main_wrap(true),
+                            |ui| {
+                                self.sections[self.current_section].section_ui(ui);
+                            },
+                        );
                     });
                 });
             })
