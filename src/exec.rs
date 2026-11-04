@@ -67,7 +67,7 @@ pub fn run_push_swap(
         cmd.arg(arg);
     }
     let mut cmd = cmd.args(args).stdout(Stdio::piped()).spawn()?;
-    let mut stdout = cmd.stdout.take().expect("what the fuck???");
+    let mut stdout = cmd.stdout.take().expect("what the hell???");
     set_nonblocking_fd(stdout.as_raw_fd());
 
     let mut buffer = vec![];
