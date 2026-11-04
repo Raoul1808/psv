@@ -10,7 +10,7 @@ impl HelpSection for DetailsViewSection {
     fn section_ui(&mut self, ui: &mut eframe::egui::Ui) {
         ui.horizontal_wrapped(|ui| {
             ui.label("In the");
-            let _ = ui.button("View");
+            let _ = ui.button("Visualizer");
             ui.label("menu, you can toggle on or off a side Details menu.");
         });
         ui.add_space(10.);
