@@ -1,6 +1,8 @@
 use eframe::egui;
 
 mod app_modes;
+mod benchmarking;
+mod benchmarking_stats;
 mod details_view;
 mod playback_controls;
 mod visualizer;
@@ -39,6 +41,8 @@ impl Help {
             Box::new(playback_controls::PlaybackControlsSection::new()),
             Box::new(details_view::DetailsViewSection),
             Box::new(visuals_view::VisualsViewSection),
+            Box::new(benchmarking::BenchmarkingSection),
+            Box::new(benchmarking_stats::BenchmarkingStatsSection),
         ];
         Self {
             current_section: 0,
