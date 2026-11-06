@@ -49,7 +49,7 @@ impl App {
     }
 
     fn first_time_ui(&mut self, ui: &mut egui::Ui) {
-        egui::Modal::new("missing_path".into()).show(ui, |ui| {
+        egui::Modal::new(egui::Id::unique("missing_path")).show(ui, |ui| {
             ui.horizontal(|ui| {
                 center_horizontal(ui, |ui| ui.heading("Setup"));
             });
@@ -70,7 +70,7 @@ impl App {
     }
 
     fn show_about(&mut self, ui: &mut egui::Ui) {
-        let res = egui::Modal::new("about".into()).show(ui, |ui| {
+        let res = egui::Modal::new(egui::Id::unique("about")).show(ui, |ui| {
             ui.horizontal(|ui| {
                 center_horizontal(ui, |ui| {
                     ui.heading("psv");
@@ -100,7 +100,7 @@ impl App {
     }
 
     fn show_settings(&mut self, ui: &mut egui::Ui) {
-        let res = egui::Modal::new("settings".into()).show(ui, |ui| {
+        let res = egui::Modal::new(egui::Id::unique("settings")).show(ui, |ui| {
             ui.horizontal(|ui| {
                 center_horizontal(ui, |ui| {
                     ui.heading("Settings");
@@ -192,13 +192,13 @@ impl App {
                         self.show_about = true;
                     }
                 });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let can_change_app_mode = match self.app_mode {
                         AppMode::Visualize => !self.visualizer.should_lock_app_mode(),
                         AppMode::Benchmark => !self.benchmark.is_benchmarking(),
                     };
                     let res = ui.add_enabled_ui(can_change_app_mode, |ui| {
-                        egui::ComboBox::new("app_mode", "App Mode:")
+                        egui::ComboBox::new("app_mode", "")
                             .selected_text(self.app_mode.to_string())
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
@@ -212,6 +212,7 @@ impl App {
                                     AppMode::Benchmark.to_string(),
                                 );
                             });
+                        ui.label("App Mode:");
                     });
                     egui::Tooltip::for_disabled(&res.response)
                         .at_pointer()

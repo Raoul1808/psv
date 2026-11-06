@@ -105,7 +105,7 @@ impl Help {
 
     pub fn ui(&mut self, ui: &mut egui::Ui, eframe: &mut eframe::Frame) {
         // I stole this from egui's Modal::show
-        let area = egui::Area::new("help_backdrop".into())
+        let area = egui::Area::new(egui::Id::unique("help_backdrop"))
             .kind(egui::UiKind::Modal)
             .sense(egui::Sense::hover())
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)

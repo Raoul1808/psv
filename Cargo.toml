@@ -10,10 +10,11 @@ lto = true
 
 [dependencies]
 bytemuck = "1.25.2"
-eframe = { version = "0.36.2", features = ["persistence", "wgpu"] }
-egui_alignments = "0.3.9"
-egui_extras = "0.36.2"
-egui_plot = "0.37.0"
+eframe = { version = "0.37.0", features = ["persistence", "wgpu"] }
+egui = { version = "0.37.0", features = ["monochrome_emoji_fonts"] }
+egui_alignments = { git = "https://github.com/Raoul1808/egui_alignments.git", branch = "egui-0.37.0" }
+egui_extras = "0.37.0"
+egui_plot = "0.38.0"
 log = "0.4.34"
 libc = "0.2.191"
 rand = "0.10.3"
