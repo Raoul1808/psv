@@ -64,8 +64,8 @@ impl Help {
         let margin = 60.;
 
         let size = egui::vec2(
-            size.width as f32 - margin * 2.,
-            size.height as f32 - margin * 2.,
+            (size.width as f32 / ui.pixels_per_point()) - margin * 2.,
+            (size.height as f32) / ui.pixels_per_point() - margin * 2.,
         );
 
         egui::Window::new("Help Manual")
