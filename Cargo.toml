@@ -1,6 +1,6 @@
 [package]
 name = "psv"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2024"
 
 [profile.release]
@@ -18,7 +18,7 @@ egui_plot = "0.38.0"
 log = "0.4.34"
 libc = "0.2.191"
 rand = "0.10.3"
-rfd = "0.17.2"
+rfd = "0.18.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 simple_logger = "5.2.0"
